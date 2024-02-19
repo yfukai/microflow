@@ -1,4 +1,6 @@
 process exportMetadata {
+    conda "${projectDir}/env/conda_env.yaml"
+
     errorStrategy 'retry'
     maxForks 20
     maxRetries 3
@@ -7,10 +9,10 @@ process exportMetadata {
     publishDir "${params.output_path}/${output_dir}", pattern: '{a_export_metadata.ipynb,metadata.yaml}', mode: "copy"
 
     input : 
-    tuple path(image_file_path), val(output_dir)
+    tuple val(output_dir), path(image_file_path)
 
     output :
-    tuple path(image_file_path), path("metadata.yaml"), val(output_dir)
+    tuple val(output_dir), path("metadata.yaml")
     file("a_export_metadata.ipynb")
 
     """

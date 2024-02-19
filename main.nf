@@ -1,14 +1,15 @@
 nextflow.enable.dsl=2
 
 params.input_path_csv = null
-params.common_input_path = ""
-params.output_path = ""
+params.common_input_path = null
+params.output_path = null
 params.shading_correction = "none"
 params.shading_correction_mode = "additive"
 params.local_subtraction_channels = "all"
 
 include { exportOriginalFilename } from "./modules/misc"
 include { exportMetadata } from "./modules/export_metadata"
+include { correctShading } from "./modules/correct_shading"
 
 workflow {
     image_files = Channel.fromPath(params.input_path_csv) | splitCsv() \
@@ -16,40 +17,14 @@ workflow {
             relpath=params.common_input_path.toURI()
                           .relativize(it[0].toURI())
                           .toString()
-            [it[0],relpath+"_analyzed"] 
+            [relpath+"_analyzed", it[0]] 
        })
     exportOriginalFilename(image_files)
     exportMetadata(image_files)
-}
+    metadata = exportMetadata.out[0]
 
-process correctShading {
-    errorStrategy 'retry'
-    maxForks 2 
-    maxRetries 3
-    cache true
-    cpus 10
-
-    publishDir "${params.output_path}/${output_dir}", pattern: 'c_shading_correction.ipynb', mode: "copy"
-    publishDir "${params.output_path}/${output_dir}", pattern: 'shading_corrected.zarr', mode: "symlink"
     
-    input:
-    tuple path(image_file_path), path("metadata.yaml"), val(output_dir)
-
-    output:
-    tuple path("shading_corrected.zarr"), path("metadata.yaml"), val(output_dir)
-    path("c_shading_correction.ipynb")
-
-    """
-    PYTHONPATH="${projectDir}/scripts" papermill ${projectDir}/scripts/c_shading_correction.ipynb \
-        c_shading_correction.ipynb  \
-        -p file_path ${image_file_path} \
-        -p metadata_path "metadata.yaml" \
-        -p output_image_path "shading_corrected.zarr" \
-        -p shading_result_path None \
-        -p num_cpus 10 \
-        -p mode ${params.shading_correction_mode} \
-        -p local_subtraction_channels ${params.local_subtraction_channels} 
-    """
+    exportMetadata.out[0].collect(flat: false)
 }
 
 process stitching {
