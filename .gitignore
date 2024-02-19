@@ -1,0 +1,5 @@
+.python-version
+run_thunders.sh
+run.sh
+.ipynb_checkpoints/
+__pycache__/

@@ -1,0 +1,26 @@
+name: microflow
+channels:
+  - bioconda
+  - defaults
+  - omnia
+  - conda-forge
+dependencies:
+  - python=3.10
+  - python-bioformats
+  - matplotlib
+  - tqdm
+  - dask
+  - h5py
+  - pip
+  - yaml
+  - zarr
+  - numpy
+  - ipykernel
+  - scikit-image
+  - aicsimageio
+  - nd2
+  - papermill
+  - bioformats_jar
+  - ray-default
+  - pip:
+    - m2stitch  
