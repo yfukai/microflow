@@ -6,7 +6,8 @@ process EXPORT_METADATA {
     maxRetries 3
     cache true
 
-    publishDir "${params.output_path}/${output_dir}", pattern: '{a_export_metadata.ipynb,metadata.yaml}', mode: "copy"
+    publishDir "${params.output_path}/${output_dir}", pattern: '{metadata.yaml}', mode: "copy"
+    publishDir "${params.output_path}/${output_dir}/notebooks", pattern: '{a_export_metadata.ipynb}', mode: "copy"
 
     input : 
     tuple val(output_dir), path(image_file_path)
