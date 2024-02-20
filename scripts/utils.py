@@ -1,9 +1,9 @@
 import numpy as np
-from matplotlib import pyplot as plt
 from dask import array as da
 import ray
 from tqdm import tqdm
-
+from numcodecs import LZ4
+import zarr
 
 def __to_iterator(obj_ids):
     while obj_ids:
@@ -56,8 +56,7 @@ def read_mosaic_image(aics_image,mosaic_dim,dimension,**kwargs):
             image_data.append(aics_image.get_image_dask_data(dimension,**kwargs))
         return da.array(image_data)
 
-from numcodecs import LZ4
-import zarr
+
 def open_zarr_with_synchronizer(storage_path, **kwargs):
     synchronizer = zarr.ProcessSynchronizer(str(storage_path).replace(".zarr","lock.sync"))
     default_kwargs = dict(

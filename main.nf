@@ -8,8 +8,8 @@ params.shading_correction_mode = "additive"
 params.local_subtraction_channels = "all"
 
 include { EXPORT_ORIGINAL_FILENAME } from "./modules/misc"
-include { exportMetadata } from "./modules/export_metadata"
-include { correctShading } from "./modules/correct_shading"
+include { EXPORT_METADATA } from "./modules/export_metadata"
+include { ESTIMATE_SHADING_EACH } from "./modules/correct_shading"
 
 workflow {
     image_files = Channel.fromPath(params.input_path_csv) | splitCsv() \
@@ -20,11 +20,12 @@ workflow {
             [relpath+"_analyzed", it[0]] 
        })
     EXPORT_ORIGINAL_FILENAME(image_files)
-    exportMetadata(image_files)
-    metadata = exportMetadata.out[0]
+    EXPORT_METADATA(image_files)
+    metadata = EXPORT_METADATA.out[0]
 
-    
-    exportMetadata.out[0].collect(flat: false)
+    image_files.join(metadata).set { image_files_metadata }
+    ESTIMATE_SHADING_EACH(image_files_metadata)
+
 }
 
 process stitching {

@@ -1,4 +1,4 @@
-process exportMetadata {
+process EXPORT_METADATA {
     conda "${projectDir}/env/conda_env.yaml"
 
     errorStrategy 'retry'
