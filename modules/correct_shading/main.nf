@@ -26,7 +26,7 @@ process ESTIMATE_SHADING_EACH {
         -p profile_filename "shading_profile.zarr" \
         -p strategy "${params.shading_estimation_strategy}" \
         -p robust ${params.shading_correction_median_robust} \
-        -p num_cpus 1
+        -p num_cpus 10
     """
 }
 
