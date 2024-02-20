@@ -4,7 +4,7 @@ process ESTIMATE_SHADING_EACH {
     maxForks 1
     maxRetries 3
     cache true
-    cpus 5
+    cpus 1
 
     publishDir "${params.output_path}/${output_dir}/notebooks", pattern: '*.ipynb', mode: "copy"
     publishDir "${params.output_path}/${output_dir}", pattern: 'shading_profile.zarr', mode: "symlink"
@@ -26,7 +26,7 @@ process ESTIMATE_SHADING_EACH {
         -p profile_filename "shading_profile.zarr" \
         -p strategy "${params.shading_estimation_strategy}" \
         -p robust ${params.shading_correction_median_robust} \
-        -p num_cpus 5
+        -p num_cpus 1
     """
 }
 

@@ -10,7 +10,6 @@ def estimate_median_profile(images, axis, robust=False, deviation_factor=2., kee
         median_deviation = da.median(da.ravel(deviation), axis=0)
         bg = da.nanmedian(da.where(deviation < median_deviation * deviation_factor, images, np.nan), axis=axis, keepdims=keepdims)
     else:
-        print(images, axis)
         bg = da.median(images, axis=axis, keepdims=keepdims)
     return bg
 
