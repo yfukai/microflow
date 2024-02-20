@@ -25,10 +25,10 @@ workflow {
     metadata = EXPORT_METADATA.out[0]
     image_files.join(metadata).set { image_files_metadata }
     
-    ESTIMATE_SHADING_EACH(image_files_metadata)
-    shading_profiles = ESTIMATE_SHADING_EACH.out[0]
-    image_files_metadata.join(shading_profiles).set { image_files_metadata_shading_profiles }
-    image_files_metadata_shading_profiles.view()
+//    ESTIMATE_SHADING_EACH(image_files_metadata)
+//    shading_profiles = ESTIMATE_SHADING_EACH.out[0]
+//    image_files_metadata.join(shading_profiles).set { image_files_metadata_shading_profiles }
+//    image_files_metadata_shading_profiles.view()
 //    CORRECT_SHADING_EACH(image_files_metadata_shading_profiles)
 
 }

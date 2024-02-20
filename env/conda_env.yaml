@@ -21,6 +21,5 @@ dependencies:
   - nd2
   - papermill
   - bioformats_jar
-  - ray-default
   - pip:
     - m2stitch  

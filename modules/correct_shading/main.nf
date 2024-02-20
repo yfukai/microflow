@@ -1,10 +1,10 @@
 process ESTIMATE_SHADING_EACH {
     conda "${projectDir}/env/conda_env.yaml"
     errorStrategy 'retry'
-    maxForks 1
+    maxForks 4
     maxRetries 3
     cache true
-    cpus 1
+    cpus 10
 
     publishDir "${params.output_path}/${output_dir}/notebooks", pattern: '*.ipynb', mode: "copy"
     publishDir "${params.output_path}/${output_dir}", pattern: 'shading_profile.zarr', mode: "symlink"

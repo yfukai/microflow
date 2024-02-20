@@ -1,19 +1,8 @@
 import numpy as np
 from dask import array as da
-import ray
 from tqdm import tqdm
 from numcodecs import LZ4
 import zarr
-
-def __to_iterator(obj_ids):
-    while obj_ids:
-        done, obj_ids = ray.wait(obj_ids)
-        yield ray.get(done[0])
-        
-def show_ray_progress(res):
-    for x in tqdm(__to_iterator(res), total=len(res)):
-        pass
-    return ray.get(res)
 
 def merge_mosaic_images(images, mosaic_positions, add_mosaics = False):
     """Merge images into a mosaic image.

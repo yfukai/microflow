@@ -35,7 +35,6 @@ def local_subtraction_2d_ignore_zero(im2d, scaling=0.1, median_disk_size=4):
         return im2d
     return im2d-scaled_filter(im2d, scaling, median_filter, anti_aliasing=True)
 
-@ray.remote
 def shading_correction_chunk(corrected_zarr, image, profile_zarr, ind, do_local_subtraction, 
                              mode, local_subtraction_scaling, local_subtraction_median_disk_size):
     if mode == "multiplicative":
