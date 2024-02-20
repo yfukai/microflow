@@ -21,5 +21,6 @@ dependencies:
   - nd2
   - papermill
   - bioformats_jar
+  - joblib
   - pip:
     - m2stitch  

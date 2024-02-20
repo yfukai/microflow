@@ -40,20 +40,19 @@ def local_subtraction_2d_ignore_zero(im2d, scaling=0.1, median_disk_size=4):
         return im2d
     return im2d-scaled_filter(im2d, scaling, median_filter, anti_aliasing=True)
 
-def shading_correction_chunk(corrected_zarr, image, profile_zarr, ind, do_local_subtraction, 
+def shading_correction_chunk(image, profile_zarr, ind, do_local_subtraction, 
                              mode, local_subtraction_scaling, local_subtraction_median_disk_size):
     if mode == "multiplicative":
-        image = np.array((image / profile_zarr)[ind]).astype(np.float32)
+        image2 = np.array((image / profile_zarr)[ind]).astype(np.float32)
     elif mode == "additive":
-        image = np.array((image - profile_zarr)[ind]).astype(np.float32)
+        image2 = np.array((image - profile_zarr)[ind]).astype(np.float32)
     if do_local_subtraction:
-        image2 = np.empty_like(image)
-        for inds in np.ndindex(image.shape[:-2]):
-            image2[inds] = local_subtraction_2d_ignore_zero(
-                image[inds], local_subtraction_scaling, 
+        image3 = np.empty_like(image2)
+        for inds in np.ndindex(image2.shape[:-2]):
+            image3[inds] = local_subtraction_2d_ignore_zero(
+                image2[inds], local_subtraction_scaling, 
                 local_subtraction_median_disk_size)
-        image = image2
-    corrected_zarr[ind] = image
+        image2 = image3
 
 def match_pattern(pattern, string):
     return any(fnmatch.fnmatch(string, p) for p in pattern.split(", "))

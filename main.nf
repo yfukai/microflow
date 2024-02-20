@@ -9,7 +9,7 @@ params.local_subtraction_channels = "all"
 
 include { EXPORT_ORIGINAL_FILENAME } from "./modules/misc"
 include { EXPORT_METADATA } from "./modules/export_metadata"
-include { ESTIMATE_SHADING_EACH } from "./modules/correct_shading"
+include { ESTIMATE_SHADING_EACH; CORRECT_SHADING_EACH } from "./modules/correct_shading"
 
 workflow {
     image_files = Channel.fromPath(params.input_path_csv) | splitCsv() \
@@ -24,12 +24,11 @@ workflow {
 
     metadata = EXPORT_METADATA.out[0]
     image_files.join(metadata).set { image_files_metadata }
-    
     ESTIMATE_SHADING_EACH(image_files_metadata)
+
     shading_profiles = ESTIMATE_SHADING_EACH.out[0]
     image_files_metadata.join(shading_profiles).set { image_files_metadata_shading_profiles }
-    image_files_metadata_shading_profiles.view()
-//    CORRECT_SHADING_EACH(image_files_metadata_shading_profiles)
+    CORRECT_SHADING_EACH(image_files_metadata_shading_profiles)
 
 }
 
@@ -67,23 +66,3 @@ process stitching {
         -p target_channel '10x_Fukai_DIA_IS'
     """
 }
-
-
-//process report {
-//    publishDir "${params.output_path}/${output_dir}", pattern: "report", mode: "copy"
-//
-//    input :
-//    tuple file("stitched.zarr"), file("metadata.yaml"), val(output_dir) from stitchedMetadata
-//
-//    output : 
-//    val(output_dir) into reported
-//    file "report" 
-//
-//    """
-//    ${moduleDir}/scripts/d_report.py \
-//        stitched.zarr \
-//        metadata.yaml \
-//        report
-//    """
-//}
-//
