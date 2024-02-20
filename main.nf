@@ -7,7 +7,7 @@ params.shading_correction = "none"
 params.shading_correction_mode = "additive"
 params.local_subtraction_channels = "all"
 
-include { exportOriginalFilename } from "./modules/misc"
+include { EXPORT_ORIGINAL_FILENAME } from "./modules/misc"
 include { exportMetadata } from "./modules/export_metadata"
 include { correctShading } from "./modules/correct_shading"
 
@@ -19,7 +19,7 @@ workflow {
                           .toString()
             [relpath+"_analyzed", it[0]] 
        })
-    exportOriginalFilename(image_files)
+    EXPORT_ORIGINAL_FILENAME(image_files)
     exportMetadata(image_files)
     metadata = exportMetadata.out[0]
 

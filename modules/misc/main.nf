@@ -1,6 +1,6 @@
 params.output_path = null
 
-process exportOriginalFilename {
+process EXPORT_ORIGINAL_FILENAME {
     publishDir "${params.output_path}/${output_dir}", pattern: 'original_filename.txt', mode: "copy"
 
     input : 
