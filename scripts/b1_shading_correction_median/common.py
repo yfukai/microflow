@@ -4,13 +4,18 @@ from skimage import transform, filters, morphology
 import ray
 import fnmatch
 
-def estimate_median_profile(images, axis, robust=False, deviation_factor=2., keepdims=True):
+def estimate_median_profile(images, axis, robust=False, deviation_factor=2., keepdims=True, median_filter_size=3, gaussian_filter_size=10):
     if robust:
         deviation = da.abs(da.median(images, axis=axis, keepdims=True) - images)
         median_deviation = da.median(da.ravel(deviation), axis=0)
         bg = da.nanmedian(da.where(deviation < median_deviation * deviation_factor, images, np.nan), axis=axis, keepdims=keepdims)
     else:
         bg = da.median(images, axis=axis, keepdims=keepdims)
+    if median_filter_size > 0:
+        # Apply median filter only to the last two dimensions
+        bg = filters.median(bg, [morphology.disk(median_filter_size)])
+    if gaussian_filter_size > 0:
+        bg = filters.gaussian(bg, sigma=gaussian_filter_size)
     return bg
 
 def scaled_filter(im2d,scale,fn,anti_aliasing=True):
