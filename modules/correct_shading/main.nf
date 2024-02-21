@@ -34,7 +34,6 @@ process ESTIMATE_SHADING_EACH {
 
 process CORRECT_SHADING_EACH {
     conda "${projectDir}/env/conda_env.yaml"
-  //  container "microflow:latest"
     //errorStrategy 'retry'
     maxForks 2 
     //maxRetries 3
