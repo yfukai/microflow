@@ -37,7 +37,7 @@ process CORRECT_SHADING_EACH {
     errorStrategy 'retry'
     maxForks 2 
     maxRetries 3
-    cache false
+    cache true
     cpus 10
 
     publishDir "${params.output_path}/${output_dir}/notebooks", pattern: '*.ipynb', mode: "copy"

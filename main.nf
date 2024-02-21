@@ -32,7 +32,8 @@ workflow {
     CORRECT_SHADING_EACH(image_files_metadata_shading_profiles)
 
     shading_corrected = CORRECT_SHADING_EACH.out[0]
-    image_files_metadata.join(shading_corrected).set { image_files_metadata_shading_corrected }
+    metadata.join(shading_corrected).set { image_files_metadata_shading_corrected }
+    //image_files_metadata_shading_corrected.view()
     STITCHING(image_files_metadata_shading_corrected)
 
 }
