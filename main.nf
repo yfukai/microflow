@@ -28,7 +28,7 @@ workflow {
 
     shading_profiles = ESTIMATE_SHADING_EACH.out[0]
     image_files_metadata.join(shading_profiles).set { image_files_metadata_shading_profiles }
-//    CORRECT_SHADING_EACH(image_files_metadata_shading_profiles)
+    CORRECT_SHADING_EACH(image_files_metadata_shading_profiles)
 
 }
 

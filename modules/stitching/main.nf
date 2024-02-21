@@ -1,4 +1,4 @@
-process stitching {
+process STITCHING {
     errorStrategy 'retry'
     maxRetries 3
     maxForks 4 
@@ -6,7 +6,10 @@ process stitching {
     cache true
 
     publishDir "${params.output_path}/${output_dir}", \
-        pattern: "{metadata.yaml,stitching_result.csv,d_stitching.ipynb}", \
+        pattern: "{metadata.yaml,stitching_result.csv}", \
+        mode: "copy"
+    publishDir "${params.output_path}/${output_dir}/notebooks", \
+        pattern: "{*.ipynb}", \
         mode: "copy"
     publishDir "${params.output_path}/${output_dir}", \
         pattern: "stitched.zarr", \
