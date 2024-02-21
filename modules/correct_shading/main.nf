@@ -34,9 +34,9 @@ process ESTIMATE_SHADING_EACH {
 
 process CORRECT_SHADING_EACH {
     conda "${projectDir}/env/conda_env.yaml"
-    //errorStrategy 'retry'
+    errorStrategy 'retry'
     maxForks 2 
-    //maxRetries 3
+    maxRetries 3
     cache false
     cpus 10
 

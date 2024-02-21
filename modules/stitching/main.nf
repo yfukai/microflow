@@ -1,12 +1,12 @@
 process STITCHING {
-    errorStrategy 'retry'
-    maxRetries 3
+//    errorStrategy 'retry'
+//    maxRetries 3
     maxForks 4 
     cpus 8 
     cache true
 
     publishDir "${params.output_path}/${output_dir}", \
-        pattern: "{metadata.yaml,stitching_result.csv}", \
+        pattern: "{stitching_result.csv}", \
         mode: "copy"
     publishDir "${params.output_path}/${output_dir}/notebooks", \
         pattern: "{*.ipynb}", \
@@ -16,10 +16,10 @@ process STITCHING {
         mode: "symlink"
 
     input :
-    tuple path("shading_corrected.zarr"), path("metadata.yaml"), val(output_dir)
+    tuple val(output_dir), path("shading_corrected.zarr"), path("metadata.yaml")
 
     output :
-    tuple path("stitched.zarr"), path("metadata.yaml"), val(output_dir)
+    tuple path("stitched.zarr"), val(output_dir)
     path "stitching_result.csv" 
     path "d_stitching.ipynb"
 
@@ -30,8 +30,8 @@ process STITCHING {
         -p metadata_path "metadata.yaml" \
         -p output_image_path "stitched.zarr" \
         -p output_csv_path "stitching_result.csv" \
-        -p every_t_stitch 0 \
-        -p num_cpus 8 \
-        -p target_channel '10x_Fukai_DIA_IS'
+        -p stitch_every_t ${params.stitching_stitch_every_t} \
+        -p num_cpus ${task.cpus} \
+        -p target_channel '${params.stitching_target_channel}'
     """
 }

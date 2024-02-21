@@ -1,7 +1,6 @@
 from dask import array as da
 import numpy as np
 from skimage import transform, filters, morphology
-import ray
 import fnmatch
 
 def estimate_median_profile(images, axis, robust=False, deviation_factor=2., keepdims=True, median_filter_size=3, gaussian_filter_size=10):

@@ -10,6 +10,7 @@ params.local_subtraction_channels = "all"
 include { EXPORT_ORIGINAL_FILENAME } from "./modules/misc"
 include { EXPORT_METADATA } from "./modules/export_metadata"
 include { ESTIMATE_SHADING_EACH; CORRECT_SHADING_EACH } from "./modules/correct_shading"
+include { STITCHING } from "./modules/stitching"
 
 workflow {
     image_files = Channel.fromPath(params.input_path_csv) | splitCsv() \
@@ -29,6 +30,10 @@ workflow {
     shading_profiles = ESTIMATE_SHADING_EACH.out[0]
     image_files_metadata.join(shading_profiles).set { image_files_metadata_shading_profiles }
     CORRECT_SHADING_EACH(image_files_metadata_shading_profiles)
+
+    shading_corrected = CORRECT_SHADING_EACH.out[0]
+    image_files_metadata.join(shading_corrected).set { image_files_metadata_shading_corrected }
+    STITCHING(image_files_metadata_shading_corrected)
 
 }
 
