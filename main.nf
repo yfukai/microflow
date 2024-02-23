@@ -34,7 +34,7 @@ workflow {
     shading_corrected = CORRECT_SHADING_EACH.out[0]
     metadata.join(shading_corrected).set { image_files_metadata_shading_corrected }
     //image_files_metadata_shading_corrected.view()
-    STITCHING(image_files_metadata_shading_corrected)
+    //STITCHING(image_files_metadata_shading_corrected)
 
 }
 

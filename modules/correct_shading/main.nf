@@ -34,11 +34,10 @@ process ESTIMATE_SHADING_EACH {
 
 process CORRECT_SHADING_EACH {
     conda "${projectDir}/env/conda_env.yaml"
-    errorStrategy 'retry'
-    maxForks 2 
-    maxRetries 3
+    //errorStrategy 'ignore'
+    maxForks 1
     cache true
-    cpus 10
+    cpus 4
 
     publishDir "${params.output_path}/${output_dir}/notebooks", pattern: '*.ipynb', mode: "copy"
     publishDir "${params.output_path}/${output_dir}", pattern: 'shading_corrected.zarr', mode: "symlink"
