@@ -1,7 +1,6 @@
 name: microflow
 channels:
   - bioconda
-  - defaults
   - omnia
   - conda-forge
 dependencies:
@@ -22,5 +21,8 @@ dependencies:
   - papermill
   - bioformats_jar
   - joblib
+  - fiji
+  - pyimagej
+  - openjdk
   - pip:
     - m2stitch  
