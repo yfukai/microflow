@@ -1,8 +1,8 @@
 process EXPORT_METADATA {
     conda "${projectDir}/env/conda_env.yaml"
 
-    errorStrategy 'retry'
-    maxRetries 3
+    //errorStrategy 'retry'
+    //maxRetries 3
     maxForks 20
     cache true
 
@@ -17,8 +17,7 @@ process EXPORT_METADATA {
     file("a_export_metadata.ipynb")
 
     """
-    CONDA_ENV_PATH=\$(conda info --json | jq -r '.active_prefix')
-    JAVA_HOME=\$CONDA_ENV_PATH PYTHONPATH="${projectDir}/scripts" papermill ${projectDir}/scripts/a_export_metadata.ipynb \
+    PYTHONPATH="${projectDir}/scripts" papermill ${projectDir}/scripts/a_export_metadata.ipynb \
         a_export_metadata.ipynb \
         -p file_path ${image_file_path} \
         -p output_metadata_path metadata.yaml

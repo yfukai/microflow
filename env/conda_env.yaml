@@ -16,13 +16,17 @@ dependencies:
   - numpy
   - ipykernel
   - scikit-image
-  - aicsimageio
+  - aicsimageio=4.10
   - nd2
   - papermill
   - bioformats_jar
   - joblib
   - fiji
-  - pyimagej
   - openjdk
+  - maven
   - pip:
     - m2stitch  
+    - imagej[pyimagej]
+    - scyjava
+    - imglyb 
+    - jpype1

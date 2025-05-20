@@ -15,6 +15,6 @@
 	// "remoteUser": "root"
 	"mounts": [
 		"source=/work/fukai,target=/work/fukai,type=bind,ro=true",
-		"source=/mnt/showers,target=/mnt/showers,type=bind,ro=true"
+		//"source=/mnt/showers,target=/mnt/showers,type=bind,ro=true"
 	]
 }
