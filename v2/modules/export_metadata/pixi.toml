@@ -1,0 +1,24 @@
+[workspace]
+authors = ["Yohsuke Fukai <ysk@yfukai.net>"]
+channels = ["conda-forge"]
+name = "export_metadata"
+platforms = ["osx-arm64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+python = "3.13.*"
+bioio = ">=3.2.0,<4"
+
+[pypi-dependencies]
+pyrallis = ">=0.3.1, <0.4"
+bioio-czi = ">=2.4.2, <3"
+bioio-dv = ">=1.2.0, <2"
+bioio-imageio = ">=1.3.0, <2"
+bioio-lif = ">=1.4.1, <2"
+bioio-nd2 = ">=1.5.0, <2"
+bioio-ome-tiff = ">=1.4.0, <2"
+bioio-ome-zarr = ">=3.2.1, <4"
+bioio-tifffile = ">=1.3.0, <2"
+bioio-bioformats = ">=1.3.2, <2"
