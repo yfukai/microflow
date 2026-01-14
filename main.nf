@@ -1,4 +1,5 @@
 nextflow.enable.dsl=2
+nextflow.enable.moduleBinaries = true
 
 params.input_path_csv = null
 params.common_input_path = null

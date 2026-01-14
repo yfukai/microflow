@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import pyrallis
 from dataclasses import dataclass
 
@@ -129,8 +131,11 @@ def main():
             acquired_times = acquired_times_by_scene[scene]
         )
         all_metadata[scene] = metadata
-        
-        xr_image = image.get_xarray_dask_stack()
+       
+        if mosaic_dim == "I": 
+            xr_image = image.get_xarray_dask_stack()
+        else:
+            xr_image = image.xarray_dask_data
         dim_squeeze = [d for d in xr_image.dims if d not in [mosaic_dim,"Y","X"]]
         xr_image_sel = xr_image.isel({d:0 for d in dim_squeeze}) 
         np_image = xr_image_sel.transpose(mosaic_dim,"Y","X").to_numpy()

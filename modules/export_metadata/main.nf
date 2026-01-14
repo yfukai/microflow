@@ -1,22 +1,24 @@
 process EXPORT_METADATA {
-    conda "${moduleDir}/envs/conda.yaml"
-
+    conda "${moduleDir}/env/conda.yaml"
+    maxForks 28
     cache true
+    errorStrategy "finish"
 
     publishDir "${params.output_path}/${output_dir}", pattern: '{metadata.yaml}', mode: "copy"
-    publishDir "${params.output_path}/${output_dir}/qc/export_metadata/", pattern: '{stitched.png}', mode: "copy"
+    publishDir "${params.output_path}/${output_dir}/qc/export_metadata/", pattern: 'stitched_*.png', mode: "copy"
 
     input : 
     tuple val(output_dir), path(image_file_path)
 
     output :
     tuple val(output_dir), path("metadata.yaml")
-    path("stitched.png")
+    path("stitched_*.png")
 
     """
     export_metadata.py \
         --file_path ${image_file_path} \
-        --output_metadata_path metadata.yaml
-        --output_test_image_path stitched.png
+        --output_path ./ \
+        --output_metadata_filename metadata.yaml \
+        --output_test_image_filename_prefix stitched 
     """
 }
