@@ -10,6 +10,9 @@ version = "0.1.0"
 [dependencies]
 python = "3.13.*"
 bioio = ">=3.2.0,<4"
+ipykernel = ">=7.1.0,<8"
+matplotlib = ">=3.10.8,<4"
+scyjava = ">=1.12.1,<2"
 
 [pypi-dependencies]
 pyrallis = ">=0.3.1, <0.4"
