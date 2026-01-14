@@ -1,5 +1,5 @@
 process EXPORT_METADATA {
-    conda "${moduleDir}/envs/conda.yaml"
+    conda "${moduleDir}/env/conda.yaml"
 
     cache true
 
