@@ -1,6 +1,5 @@
 process EXPORT_METADATA {
     conda "${moduleDir}/env/conda.yaml"
-    maxForks 28
     cache true
     errorStrategy "finish"
 

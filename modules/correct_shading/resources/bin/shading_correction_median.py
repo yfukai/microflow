@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import pyrallis
 from dataclasses import dataclass
 
@@ -62,33 +60,6 @@ def determine_mosaic_dimensions(image : BioImage):
         mosaic_dim = None
     return mosaic_dim
 
-
-def to_unique_channel_names(channel_names : list[str]) -> list[str]:
-    """Convert channel names to unique channel names by appending indices to duplicates.
-    
-    Parameters
-    ----------
-    channel_names : list of str
-        List of channel names.
-    
-    Returns
-    -------
-    list of str
-        List of unique channel names.
-    """
-    name_count = {}
-    unique_names = []
-    for name in channel_names:
-        if name in name_count:
-            name_count[name] += 1
-            unique_name = f"{name}_{name_count[name]}"
-        else:
-            name_count[name] = 0
-            unique_name = name
-        unique_names.append(unique_name)
-    return unique_names
-
-
 @dataclass
 class Config:
     file_path : str = "testdata/test.czi"
@@ -147,9 +118,8 @@ def main():
             file_path=path.abspath(cfg.file_path),
             metadata_path = path.abspath(output_metadata_path),
             channel_names = list(map(str,image.channel_names)), # channel name strings
-            unique_channel_names = to_unique_channel_names(image.channel_names), # unique channel name strings
             dims = dict(image.dims.items()), # dimensions of the image
-            mosaic_dimension = mosaic_dim,
+            mosaic_dim = mosaic_dim,
             mosaic_positions_px = mosaic_positions.tolist() if mosaic_positions is not None else None,
             physical_pixel_sizes_um = {
                 "Z": cast_pixel_size(image.physical_pixel_sizes.Z),
@@ -159,11 +129,8 @@ def main():
             acquired_times = acquired_times_by_scene[scene]
         )
         all_metadata[scene] = metadata
-       
-        if mosaic_dim == "I": 
-            xr_image = image.get_xarray_dask_stack()
-        else:
-            xr_image = image.xarray_dask_data
+        
+        xr_image = image.get_xarray_dask_stack()
         dim_squeeze = [d for d in xr_image.dims if d not in [mosaic_dim,"Y","X"]]
         xr_image_sel = xr_image.isel({d:0 for d in dim_squeeze}) 
         np_image = xr_image_sel.transpose(mosaic_dim,"Y","X").to_numpy()
