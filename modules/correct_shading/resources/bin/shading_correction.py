@@ -1,5 +1,3 @@
-# %%
-
 import pyrallis
 from dataclasses import dataclass
 
@@ -14,11 +12,14 @@ from utils import read_mosaic_image
 @dataclass
 class Config:
     file_path : str = "testdata/test.czi"
-    metadata_path : str = "metadata.yaml"
+    metadata_path : str = "testdata/metadata.yaml"
     channel_index : int = 0
+    strategy : str = "percentile" # options: "percentile", "mean", "pybaselines"
+    percentile_percentile : float = 50.0
+    pybaselines_method : str = 
     output_path : str = "testdata/test_output"
-    output_test_image_filename_prefix : str = "stitched"
-    
+    output_correction_data_filename_prefix : str = "shading_correction"
+    output_test_image_filename_prefix : str = "background"
 
 def main():
     cfg = pyrallis.parse(config_class=Config)
