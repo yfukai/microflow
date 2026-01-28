@@ -17,25 +17,37 @@ import multiprocessing as mp
 class PerImageStrategyKind(str, Enum):
     none = "none"
     imodpoly = "imodpoly"
+    local_subtraction = "local_subtraction"
 
 class PerImageStrategyConfig:
     strategy: PerImageStrategyKind
-    def estimate(self, image_data: np.ndarray) -> dict[str, np.ndarray]:
+    
+    def estimate(self, image_data: np.ndarray) -> np.ndarray:
+        """Estimate the additive background profile from the given image data.
+
+        Parameters
+        ----------
+        image_data : np.ndarray
+            The image data to estimate the background from. The shape is expected to be (Z, Y, X).
+
+        Returns
+        -------
+        np.ndarray
+            The estimated background profile.
+
+        Raises
+        ------
+        NotImplementedError
+            If the estimation strategy is not implemented.
+        """
         raise NotImplementedError
 
-    def correct(self, image_data: np.ndarray, profiles: dict[str, np.ndarray]) -> np.ndarray:
-        raise NotImplementedError
 
 
 @dataclass
 class NullImageStrategyConfig(PerImageStrategyConfig):
     strategy: PerImageStrategyKind = PerImageStrategyKind.none
 
-    def estimate(self, image_data: np.ndarray) -> dict[str, np.ndarray]:
-        raise NotImplementedError
-
-    def correct(self, image_data: np.ndarray, profiles: dict[str, np.ndarray]) -> np.ndarray:
-        raise NotImplementedError
 
 @dataclass
 class ImodpolyConfig(PerImageStrategyConfig):
@@ -44,7 +56,42 @@ class ImodpolyConfig(PerImageStrategyConfig):
     tol: float = 1e-3
     max_iter: int = 200
     num_std: float = 1.0
-    
+
+def scaled_filter(im2d,scale,fn,anti_aliasing=True):
+    """ apply filter for scaled image and resize to original size """
+    shape = im2d.shape
+    im2d = np.array(im2d, dtype=np.float32)
+    im2d = transform.rescale(im2d, 
+        scale,
+        anti_aliasing=anti_aliasing,
+        preserve_range=True)
+    im2d = fn(im2d)
+    return transform.resize(im2d,shape, preserve_range=True)
+
+def local_subtraction_2d_ignore_zero(im2d, scaling=0.1, median_disk_size=4):
+    if scaling <= 0 or scaling >= 1:
+        raise ValueError("scaling must be between 0 and 1")
+    if im2d.ndim != 2:
+        raise ValueError("im2d must be a 2D array")
+    def median_filter(im):
+        return filters.median(
+                    im,morphology.disk(median_disk_size)
+                )
+    if np.count_nonzero(im2d) == 0:
+        return im2d
+    return scaled_filter(im2d, scaling, median_filter, anti_aliasing=True)
+
+@dataclass
+class LocalSubtractionConfig:
+    strategy: PerImageStrategyKind = PerImageStrategyKind.local_subtraction
+    scaling: float = 0.1
+    median_disk_size: int = 4
+
+    def estimate(self, image_data: np.ndarray) -> np.ndarray:
+        return np.array([local_subtraction_2d_ignore_zero(im, 
+                                                scaling=self.scaling,
+                                                median_disk_size=self.median_disk_size)
+                         for im in image_data])
 
 class PerFrameStrategyKind(str, Enum):
     percentile = "percentile"
@@ -101,46 +148,21 @@ class Config:
     scene : Union[str,int] = 0
     channel_index : int = 0
 
-    per_image_strategy : PerImageStrategyConfig = field(default_factory=NullImageStrategyConfig)
+    preprocessing_for_per_frame_estimation : PerImageStrategyConfig = field(default_factory=NullImageStrategyConfig)
     per_frame_strategy : PerFrameStrategyConfig = field(default_factory=PercentileConfig)
-    local_subtraction : bool = False
-    local_subtraction_scaling : float = 0.1
-    local_subtraction_median_disk_size : int = 4
+    per_image_strategy : PerImageStrategyConfig = field(default_factory=NullImageStrategyConfig)
 
     output_path : str = "testdata/test_output"
     output_run_config_filename : str = "run_config.yaml"
     output_correction_data_filename_prefix : str = "shading_correction"
     output_test_image_filename_prefix : str = "background"
+    output_image_name : str = "corrected_image.zarr"
     
     num_cpus : int = mp.cpu_count()
     
 
-def scaled_filter(im2d,scale,fn,anti_aliasing=True):
-    """ apply filter for scaled image and resize to original size """
-    shape = im2d.shape
-    im2d = np.array(im2d, dtype=np.float32)
-    im2d = transform.rescale(im2d, 
-        scale,
-        anti_aliasing=anti_aliasing,
-        preserve_range=True)
-    im2d = fn(im2d)
-    return transform.resize(im2d,shape,
-                preserve_range=True)
-
-def local_subtraction_2d_ignore_zero(im2d, scaling=0.1, median_disk_size=4):
-    if scaling <= 0 or scaling >= 1:
-        raise ValueError("scaling must be between 0 and 1")
-    if im2d.ndim != 2:
-        raise ValueError("im2d must be a 2D array")
-    def median_filter(im):
-        return filters.median(
-                    im,morphology.disk(median_disk_size)
-                )
-    if np.count_nonzero(im2d) == 0:
-        return im2d
-    return im2d-scaled_filter(im2d, scaling, median_filter, anti_aliasing=True)
     
-def process_frame(frame_data: np.ndarray, *, cfg: Config) -> da.array:
+def process_frame(frame_data: np.ndarray, *, cfg: Config) -> tuple[np.ndarray, dict[str, np.ndarray], np.ndarray|None]:
     """Process a single frame with shading correction.
 
     Parameters
@@ -153,34 +175,39 @@ def process_frame(frame_data: np.ndarray, *, cfg: Config) -> da.array:
 
     Returns
     -------
-    da.array
+    np.ndarray
         Corrected frame data. Same shape as input.
+    dict[str, np.ndarray]
+        Estimated profiles used for correction.
+    np.ndarray | None
+        Estimated image-level profile, if applicable; otherwise, None.
     """
     if frame_data.shape[1] != 1:
         raise NotImplementedError("Only Z=1 is supported currently.")
     if frame_data.ndim != 4:
         raise ValueError("frame_data must be a 4D array with shape (M, Z, Y, X).")
-    
-    if cfg.per_image_strategy.strategy != PerImageStrategyKind.none:
-        image_profile = cfg.per_image_strategy.estimate(frame_data)
-        image_corrected = cfg.per_image_strategy.correct(frame_data, image_profile)
+
+    if cfg.preprocessing_for_per_frame_estimation.strategy != PerImageStrategyKind.none:
+        per_frame_estimation_preprocessed = np.array([
+            cfg.preprocessing_for_per_frame_estimation.estimate(frame_data[m])
+            for m in range(frame_data.shape[0])
+        ])
     else:
-        image_corrected = frame_data
+        per_frame_estimation_preprocessed = frame_data
+
     if cfg.per_frame_strategy.strategy != PerFrameStrategyKind.none:
-        frame_profile = cfg.per_frame_strategy.estimate(image_corrected)
-        frame_corrected = cfg.per_frame_strategy.correct(image_corrected, frame_profile)
+        frame_profile = cfg.per_frame_strategy.estimate(per_frame_estimation_preprocessed)
+        frame_data = cfg.per_frame_strategy.correct(frame_data, frame_profile)
     else:
-        frame_corrected = image_corrected
-    if cfg.local_subtraction:
-        if frame_corrected.shape[1] != 1:
-            raise NotImplementedError("Local subtraction currently only supports Z=1.")
-        frame_corrected = np.array([local_subtraction_2d_ignore_zero(
-            frame_corrected[m,0], 
-            scaling=cfg.local_subtraction_scaling, 
-            median_disk_size=cfg.local_subtraction_median_disk_size
-        ) for m in range(frame_corrected.shape[0])])
-        frame_corrected = frame_corrected[:, np.newaxis]
-    return frame_corrected, frame_profile
+        frame_profile = {}
+        frame_data = frame_data
+    if cfg.per_image_strategy.strategy != PerImageStrategyKind.none:
+        image_profile = np.array([cfg.per_image_strategy.estimate(im) for im in frame_data])
+        frame_data = frame_data - image_profile
+    else:
+        image_profile = None
+        frame_data = frame_data
+    return frame_data, frame_profile, image_profile[0] if image_profile is not None else None
 
 
     
@@ -212,8 +239,9 @@ if __name__ == '__main__':
     
 #cfg = pyrallis.parse(config_class=Config)
 cfg = Config()
-cfg.channel_index=2
+cfg.channel_index=0
 cfg.per_frame_strategy.smoothing_sigma=10.0
+cfg.per_image_strategy = LocalSubtractionConfig(scaling=0.1, median_disk_size=4)
 
 print(f"File Path: {cfg.file_path}")
 print(f"Metadata Path: {cfg.metadata_path}")
@@ -244,21 +272,31 @@ test_image = image_data[:,0].compute()  # First timepoint
 
 # %%
 
-corrected, profile = process_frame(test_image, cfg=cfg)
+corrected, frame_profile, image_profile_first = process_frame(test_image, cfg=cfg)
 
-print(f"Estimated profile keys: {list(profile.keys())}")
-fig, axes = plt.subplots(1,2+len(profile), figsize=(15,5))
-axes[0].imshow(image_data[0,0,0], cmap='gray')
+print(f"Estimated profile keys: {list(frame_profile.keys())}")
+ncols = 2+len(frame_profile)+ (1 if image_profile_first is not None else 0)
+fig, axes = plt.subplots(1,ncols, 
+                         figsize=(5*ncols,5))
+sm = axes[0].imshow(image_data[0,0,0], cmap='gray')
+fig.colorbar(sm, ax=axes[0])
 axes[0].set_title("Original Image")
-axes[1].imshow(corrected[0,0], cmap='gray')
+sm = axes[1].imshow(corrected[0,0], cmap='gray')
+fig.colorbar(sm, ax=axes[1])
 axes[1].set_title("Corrected Image")
-for jj, (key, prof) in enumerate(profile.items()):
-    axes[2+jj].imshow(prof[0,0], cmap='gray')
+for jj, (key, prof) in enumerate(frame_profile.items()):
+    sm = axes[2+jj].imshow(prof[0,0], cmap='gray')
+    fig.colorbar(sm, ax=axes[2+jj])
     axes[2+jj].set_title(f"Profile: {key}")
 for ax in axes:
     ax.axis('off')
+if image_profile_first is not None:
+    sm = axes[-1].imshow(image_profile_first[0], cmap='gray')
+    fig.colorbar(sm, ax=axes[-1])
+    axes[-1].set_title("Image-level Profile")
 fig.tight_layout()
 fig.show()
+fig.savefig(path.join(cfg.output_path, cfg.output_run_config_filename)
 # %%
 
 with mp.Pool(processes=cfg.num_cpus) as pool:
