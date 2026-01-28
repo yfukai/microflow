@@ -93,6 +93,7 @@ def to_unique_channel_names(channel_names : list[str]) -> list[str]:
 class Config:
     file_path : str = "testdata/test.czi"
     output_path : str = "testdata/test_output"
+    output_run_config_filename : str = "run_config.yaml"
     output_metadata_filename : str = "metadata.yaml"
     output_test_image_filename_prefix : str = "stitched"
     
@@ -102,6 +103,9 @@ def main():
     print(f"File Path: {cfg.file_path}")
     print(f"Output path: {cfg.output_path}")
     output_metadata_path = path.join(cfg.output_path, cfg.output_metadata_filename)
+    output_run_config_path = path.join(cfg.output_path, cfg.output_run_config_filename)
+    with open(output_run_config_path, "w") as f:
+        pyrallis.dump(cfg, f)
 
     image = BioImage(cfg.file_path, 
                      reconstruct_mosaic=False, 

@@ -1,0 +1,13 @@
+# /tmp/shading.yaml
+per_image_strategy:
+  strategy: imodpoly
+  poly_order: 3
+  tol: 1e-3
+  max_iter: 200
+  num_std: 1.0
+
+per_frame_strategy:
+  strategy: percentile
+  percentile: 50.0
+  robust: false
+  deviation_factor: 2.0
