@@ -11,7 +11,7 @@ def read_mosaic_image(image,mosaic_dim,dimension,**kwargs):
         da_image = da.array(image_data)
     else:
         raise ValueError(f"Unsupported mosaic dimension: {mosaic_dim}")
-    new_chunks = [1,] + [da_image.shape[i] if d in ["Z", "Y", "X"] else 1 
+    new_chunks = [1,] + [-1 if d in ["Z", "Y", "X"] else 1 
                          for i, d in enumerate(dimension)]
     print(f"Rechunking image from {da_image.chunks} to {new_chunks}")
     return da_image.rechunk(tuple(new_chunks))

@@ -13,6 +13,9 @@ from utils import read_mosaic_image
 from dask import array as da
 from skimage import transform, filters, morphology
 import multiprocessing as mp
+from shutil import rmtree
+
+from tensorstore_utils import init_store, codecs_image
 
 class PerImageStrategyKind(str, Enum):
     none = "none"
@@ -134,11 +137,11 @@ class PercentileConfig(PerFrameStrategyConfig):
             bg = np.percentile(image_data, self.percentile, axis=0, keepdims=True)
         if self.smoothing_sigma > 0:
             bg = filters.gaussian(bg, sigma=self.smoothing_sigma, preserve_range=True)
-        return {"background": bg}
+        return {"background": bg.astype(np.float32)}
 
     def correct(self, image_data: np.ndarray, profiles: dict[str, np.ndarray]) -> np.ndarray:
         profile = profiles["background"]
-        corrected = image_data - profile
+        corrected = image_data.astype(np.float32) - profile
         return corrected
 
 @dataclass
@@ -155,7 +158,7 @@ class Config:
     output_path : str = "testdata/test_output"
     output_run_config_filename : str = "run_config.yaml"
     output_correction_data_filename_prefix : str = "shading_correction"
-    output_test_image_filename_prefix : str = "background"
+    output_test_image_filename : str = "shading_correction_result.png"
     output_image_name : str = "corrected_image.zarr"
     
     num_cpus : int = mp.cpu_count()
@@ -183,7 +186,7 @@ def process_frame(frame_data: np.ndarray, *, cfg: Config) -> tuple[np.ndarray, d
         Estimated image-level profile, if applicable; otherwise, None.
     """
     if frame_data.shape[1] != 1:
-        raise NotImplementedError("Only Z=1 is supported currently.")
+        raise NotImplementedError(f"Only Z=1 is supported currently. {frame_data.shape} found.")
     if frame_data.ndim != 4:
         raise ValueError("frame_data must be a 4D array with shape (M, Z, Y, X).")
 
@@ -213,8 +216,9 @@ def process_frame(frame_data: np.ndarray, *, cfg: Config) -> tuple[np.ndarray, d
     
 # %%
 def main():
-    cfg = pyrallis.parse(config_class=Config)
-   
+    cfg = pyrallis.parse(Config)
+    print("Shading correction with the following configuration:")
+    print(cfg)
     print(f"File Path: {cfg.file_path}")
     print(f"Metadata Path: {cfg.metadata_path}")
     output_run_config_path = path.join(cfg.output_path, cfg.output_run_config_filename)
@@ -226,97 +230,113 @@ def main():
                      use_aicspylibczi=True)
     with open(cfg.metadata_path, 'r') as f:
         metadata = yaml.safe_load(f)
-#    mosaic_dim = metadata["mosaic_dimension"]
-#    image_data = read_mosaic_image(image, mosaic_dim, "TZYX", C=cfg.channel_index)
-#
-#    print(f"Metadata: {metadata}")
-#    print(f"Image data shape: {image_data.shape}")
+
+    if isinstance(cfg.scene, int):
+        scene_name = image.scenes[cfg.scene]
+    else:
+        scene_name = cfg.scene
+    print(f"Using scene: {scene_name}")
+    mosaic_dim = metadata[scene_name]["mosaic_dimension"]
+    image_data = read_mosaic_image(image, mosaic_dim, "TZYX", C=cfg.channel_index)
+    # image_data : "MTZYX"
+    print(f"Metadata: {metadata}")
+    print(f"Image data shape: {image_data.shape}")
+    print(f"Image data chunks: {image_data.chunks}")
+
+    ################ Process and visualize a test image ################
+    test_image = image_data[:,0].compute()  # First timepoint
+    corrected, frame_profile, image_profile_first = process_frame(test_image, cfg=cfg)
+
+    print(f"Estimated profile keys: {list(frame_profile.keys())}")
+    ncols = 2+len(frame_profile)+ (1 if image_profile_first is not None else 0)
+    fig, axes = plt.subplots(1,ncols, 
+                             figsize=(5*ncols,5))
+    sm = axes[0].imshow(image_data[0,0,0], cmap='gray')
+    fig.colorbar(sm, ax=axes[0])
+    axes[0].set_title("Original Image")
+    sm = axes[1].imshow(corrected[0,0], cmap='gray')
+    fig.colorbar(sm, ax=axes[1])
+    axes[1].set_title("Corrected Image")
+    for jj, (key, prof) in enumerate(frame_profile.items()):
+        sm = axes[2+jj].imshow(prof[0,0], cmap='gray')
+        fig.colorbar(sm, ax=axes[2+jj])
+        axes[2+jj].set_title(f"Profile: {key}")
+    for ax in axes:
+        ax.axis('off')
+    if image_profile_first is not None:
+        sm = axes[-1].imshow(image_profile_first[0], cmap='gray')
+        fig.colorbar(sm, ax=axes[-1])
+        axes[-1].set_title("Image-level Profile")
+    fig.tight_layout()
+    fig.show()
+    fig.savefig(path.join(cfg.output_path, cfg.output_test_image_filename), bbox_inches='tight')
+    
+    ################ Analyze all frames and write output zarr ################
+    output_zarr_path = path.join(cfg.output_path, cfg.output_image_name)
+    rmtree(output_zarr_path, ignore_errors=True)
+    print(f"Writing corrected image to: {output_zarr_path}")
+
+    image_data_rechunked = da.moveaxis(image_data, 0, 1).rechunk({0:1, 1:-1, 2:-1, 3:-1, 4:-1})
+
+    store_args = dict(
+        path=output_zarr_path,
+        dtype=np.float32,
+        shape=image_data.shape,
+        chunks=(1,1)+image_data.shape[2:],
+        mode="a",
+        codecs=codecs_image,
+    )
+
+    def compute_and_write(chunk, block_info=None):
+        loc = block_info[None]["array-location"]
+        print(f"Processing chunk with block info: {block_info}")
+        print(chunk.shape)
+        corrected_chunk, _, _ = process_frame(chunk[0], cfg=cfg)
+        output_store = init_store(**store_args)
+        output_store[tuple(slice(s,e) for s,e in loc)].write(corrected_chunk.astype(np.float32)[np.newaxis]).result()
+        output_store.close()
+        print(f"Processed and wrote chunk at location {loc}")
+        return corrected_chunk
+
+    image_data_rechunked.map_blocks(
+        compute_and_write,
+        meta=image_data_rechunked
+    ).compute()
+
 
 if __name__ == '__main__':
     main()
 
-# %%
-    
-#cfg = pyrallis.parse(config_class=Config)
-cfg = Config()
-cfg.channel_index=0
-cfg.per_frame_strategy.smoothing_sigma=10.0
-cfg.per_image_strategy = LocalSubtractionConfig(scaling=0.1, median_disk_size=4)
-
-print(f"File Path: {cfg.file_path}")
-print(f"Metadata Path: {cfg.metadata_path}")
-output_run_config_path = path.join(cfg.output_path, cfg.output_run_config_filename)
-with open(output_run_config_path, "w") as f:
-    pyrallis.dump(cfg, f)
-
-image = BioImage(cfg.file_path, 
-                 reconstruct_mosaic=False, 
-                 use_aicspylibczi=True)
-with open(cfg.metadata_path, 'r') as f:
-    metadata = yaml.safe_load(f)
 
 # %%
-if isinstance(cfg.scene, int):
-    scene_name = image.scenes[cfg.scene]
-else:
-    scene_name = cfg.scene
-print(f"Using scene: {scene_name}")
-mosaic_dim = metadata[scene_name]["mosaic_dimension"]
-image_data = read_mosaic_image(image, mosaic_dim, "TZYX", C=cfg.channel_index)
-# image_data : "MTZYX"
-print(f"Metadata: {metadata}")
-print(f"Image data shape: {image_data.shape}")
-print(f"Image data chunks: {image_data.chunks}")
+def block_index_to_slices(block_index, chunks):
+    # chunks: x.chunks (tuple of tuples)
+    out = []
+    for i, c in zip(block_index, chunks):
+        start = sum(c[:i])
+        stop  = start + c[i]
+        out.append(slice(start, stop))
+    return tuple(out)
 # %%
-test_image = image_data[:,0].compute()  # First timepoint
-
+blocks = image_data_rechunked.to_delayed().ravel()
 # %%
+import dask
+@dask.delayed
+def compute_and_write(chunk, slices):
+    print(f"Processing chunk with slices: {slices}")
+    print(chunk.shape)
+    corrected_chunk, _, _ = process_frame(chunk[0], cfg=cfg)
+    output_store = init_store(**store_args)
+    output_store[slices].write(corrected_chunk.astype(np.float32)[np.newaxis]).result()
+    output_store.close()
+    print(f"Processed and wrote chunk at location {slices}")
+    return corrected_chunk
+tasks = []
+delayed_array = image_data_rechunked.to_delayed()
+for block_index in np.ndindex(*image_data_rechunked.numblocks):
+    d = delayed_array[block_index]  # ブロック座標で対応する delayed を取得
+    slc = block_index_to_slices(block_index, image_data_rechunked.chunks)
+    tasks.append(compute_and_write(d, slc))
 
-corrected, frame_profile, image_profile_first = process_frame(test_image, cfg=cfg)
-
-print(f"Estimated profile keys: {list(frame_profile.keys())}")
-ncols = 2+len(frame_profile)+ (1 if image_profile_first is not None else 0)
-fig, axes = plt.subplots(1,ncols, 
-                         figsize=(5*ncols,5))
-sm = axes[0].imshow(image_data[0,0,0], cmap='gray')
-fig.colorbar(sm, ax=axes[0])
-axes[0].set_title("Original Image")
-sm = axes[1].imshow(corrected[0,0], cmap='gray')
-fig.colorbar(sm, ax=axes[1])
-axes[1].set_title("Corrected Image")
-for jj, (key, prof) in enumerate(frame_profile.items()):
-    sm = axes[2+jj].imshow(prof[0,0], cmap='gray')
-    fig.colorbar(sm, ax=axes[2+jj])
-    axes[2+jj].set_title(f"Profile: {key}")
-for ax in axes:
-    ax.axis('off')
-if image_profile_first is not None:
-    sm = axes[-1].imshow(image_profile_first[0], cmap='gray')
-    fig.colorbar(sm, ax=axes[-1])
-    axes[-1].set_title("Image-level Profile")
-fig.tight_layout()
-fig.show()
-fig.savefig(path.join(cfg.output_path, cfg.output_run_config_filename)
-# %%
-
-with mp.Pool(processes=cfg.num_cpus) as pool:
-    corrected_frames = pool.starmap(process_frame, [(image_data[t].compute(), cfg) for t in range(image_data.shape[0])])
-
-# Parallelly process all frames
-corrected_zarr = da.map_blocks(
-    lambda block: process_frame(block, cfg=cfg)[0],
-    image_data,
-    dtype=image_data.dtype,
-    chunks=image_data.chunks
-)
-
-
-# %%
-corrected_zarr.shape  # (T, M, Z, Y, X)
-# %%
-image_data.shape
-# %%
-image_data.chunks
-# %%
-corrected = corrected_zarr.compute()
+dask.compute(*tasks)
 # %%
