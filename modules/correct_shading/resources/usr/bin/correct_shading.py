@@ -39,9 +39,9 @@ class Config:
 
     output_path : str = "testdata/test_output"
     output_run_config_filename : str = "run_config.yaml"
-    output_correction_data_filename_prefix : str = "shading_correction"
+    output_correction_data_filename : str = "shading_corrected.zarr"
     output_test_image_filename : str = "shading_correction_result.png"
-    output_image_name : str = "corrected_image.zarr"
+    output_image_name : str = "shading_corrected.zarr"
     
     num_cpus : int = mp.cpu_count()
     
@@ -111,6 +111,9 @@ def main():
     print(cfg)
     print(f"File Path: {cfg.file_path}")
     print(f"Metadata Path: {cfg.metadata_path}")
+    # Set up dask number of workers
+    dask.config.set(scheduler='processes', num_workers=cfg.num_cpus)
+    
     output_run_config_path = path.join(cfg.output_path, cfg.output_run_config_filename)
     with open(output_run_config_path, "w") as f:
         pyrallis.dump(cfg, f)
@@ -176,6 +179,8 @@ def main():
         mode="a",
         codecs=codecs_image,
     )
+
+    # TODO also store the estimated profiles
 
     @dask.delayed
     def compute_and_write(chunk, slices):

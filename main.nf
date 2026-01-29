@@ -19,19 +19,25 @@ workflow {
             relpath=params.common_input_path.toURI()
                           .relativize(it[0].toURI())
                           .toString()
-            [relpath+"_analyzed", it[0]] 
+            [[output_dir:relpath+"_analyzed"], it[0]] 
        })
     EXPORT_ORIGINAL_FILENAME(image_files)
     EXPORT_METADATA(image_files)
 
     metadata = EXPORT_METADATA.out[0]
-    metadata.view()
+    // Populate scenes_channels into metadata, and make a (meta, scene, channel_index list)
     image_files.join(metadata).set { image_files_metadata }
-//    ESTIMATE_SHADING_EACH(image_files_metadata)
-//
-//    shading_profiles = ESTIMATE_SHADING_EACH.out[0].collect()
-//    image_files_metadata.join(shading_profiles).set { image_files_metadata_shading_profiles }
-//    CORRECT_SHADING_EACH(image_files_metadata_shading_profiles)
+    image_files_metadata.map { meta, image_file, metadata_yaml, scenes_channels_yaml ->
+        def scenes_channels = new groovy.yaml.YamlSlurper().parseText(metadata_yaml.text)
+        val = []
+        for (scene_channel in scenes_channels) {
+            meta2 = meta + scene_channel
+            val << [meta2, image_file, metadata_yaml]
+        }
+    }.flatMap().set { image_files_metadata_expanded }
+    image_files_metadata_expanded.view()
+
+//    CORRECT_SHADING_EACH_FRAME(image_files_metadata)
 //
 //    shading_corrected = CORRECT_SHADING_EACH.out[0].collect()
 //    metadata.join(shading_corrected).set { image_files_metadata_shading_corrected }

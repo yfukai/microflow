@@ -3,14 +3,14 @@ process EXPORT_METADATA {
     cache true
     errorStrategy "finish"
 
-    publishDir "${params.output_path}/${output_dir}", pattern: '{metadata.yaml}', mode: "copy"
-    publishDir "${params.output_path}/${output_dir}/qc/export_metadata/", pattern: 'stitched_*.png', mode: "copy"
+    publishDir "${params.output_path}/${meta.output_dir}", pattern: '{metadata.yaml}', mode: "copy"
+    publishDir "${params.output_path}/${meta.output_dir}/qc/export_metadata/", pattern: 'stitched_*.png', mode: "copy"
 
     input : 
-    tuple val(output_dir), path(image_file_path)
+    tuple val(meta), path(image_file_path)
 
     output :
-    tuple val(output_dir), path("metadata.yaml")
+    tuple val(meta), path("metadata.yaml"), path("scenes_channels.yaml")
     path("stitched_*.png")
 
     """
@@ -19,5 +19,7 @@ process EXPORT_METADATA {
         --output_path ./ \
         --output_metadata_filename metadata.yaml \
         --output_test_image_filename_prefix stitched 
+    # Extract "channel_names" from metadata.yaml for further processing
+    yaml_extract_channels.py > scenes_channels.yaml
     """
 }
