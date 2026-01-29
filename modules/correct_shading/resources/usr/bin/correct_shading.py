@@ -165,7 +165,9 @@ def main():
     fig.savefig(path.join(cfg.output_path, cfg.output_test_image_filename), bbox_inches='tight')
     
     ################ Analyze all frames and write output zarr ################
-    output_zarr_path = path.join(cfg.output_path, cfg.output_image_name)
+    # tensorstore's file kvstore rejects paths starting with "./" (seen when output_path="./"),
+    # so normalize to an absolute path to avoid the leading dot prefix.
+    output_zarr_path = path.abspath(path.join(cfg.output_path, cfg.output_image_name))
     rmtree(output_zarr_path, ignore_errors=True)
     print(f"Writing corrected image to: {output_zarr_path}")
 
@@ -179,7 +181,11 @@ def main():
         mode="a",
         codecs=codecs_image,
     )
-
+    store_args2 = store_args.copy()
+    store_args2["mode"] = "w"
+    init_store(**store_args2)  # Initialize store
+    print(f"Initialized output zarr store at: {output_zarr_path}")
+    
     # TODO also store the estimated profiles
 
     @dask.delayed
@@ -203,5 +209,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-
 

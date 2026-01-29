@@ -31,7 +31,6 @@ process CORRECT_SHADING_EACH_FRAME {
         --output_correction_data_filename "shading_correction_${meta.scene}_${meta.channel_index}_${meta.channel_name}.zarr" \
         --output_test_image_filename "shading_correction_result_${meta.scene}_${meta.channel_index}_${meta.channel_name}.png" \
         --output_image_name "shading_corrected.zarr" \
-        --num_cpus ${task.cpus} \
-        --config_path input_config.yaml 
+        --num_cpus ${task.cpus} 
     """
 }
