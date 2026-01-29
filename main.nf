@@ -26,7 +26,7 @@ workflow {
 
     metadata = EXPORT_METADATA.out[0]
     metadata.view()
-//    image_files.join(metadata).set { image_files_metadata }
+    image_files.join(metadata).set { image_files_metadata }
 //    ESTIMATE_SHADING_EACH(image_files_metadata)
 //
 //    shading_profiles = ESTIMATE_SHADING_EACH.out[0].collect()

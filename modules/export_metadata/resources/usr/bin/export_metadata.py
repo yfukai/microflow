@@ -86,7 +86,7 @@ def to_unique_channel_names(channel_names : list[str]) -> list[str]:
             name_count[name] = 0
             unique_name = name
         unique_names.append(unique_name)
-    return unique_names
+    return [str(n) for n in unique_names]
 
 
 @dataclass
