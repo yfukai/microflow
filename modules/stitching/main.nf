@@ -36,3 +36,65 @@ process STITCHING_ESTIMATION {
         --output_test_image_name "test_stitched_image_${meta.scene}.png"
     """
 }
+
+
+process MEDIAN_SUMMARIZE_STITCHING_POSITIONS {
+    conda "${moduleDir}/env/conda.yaml"
+    errorStrategy 'ignore'
+    maxForks 4 
+    cpus 4 
+    cache true
+
+    publishDir "${params.output_path}/${meta.output_dir}", \
+        pattern: "stitching_positions_summary_${meta.scene}.csv", \
+        mode: "copy"
+
+    input :
+    tuple val(meta), path(stitching_positions_csvs)
+
+    output :
+    tuple val(meta), path("stitching_positions_summary_${meta.scene}.csv")
+
+    """
+    median_summarize_stitching_positions.py  \
+        --input_paths ${stitching_positions_csvs.join(' ')} \
+        --output_path ./stitching_positions_summary_${meta.scene}.csv
+    """
+}
+
+
+process STITCHING_EXPORT {
+    conda "${moduleDir}/env/conda.yaml"
+    errorStrategy 'ignore'
+    maxForks 4 
+    cpus 8 
+    cache true
+
+    publishDir "${params.output_path}/${meta.output_dir}", \
+        pattern: "${meta.output_image_name}", \
+        mode: "copy"
+    publishDir "${params.output_path}/${meta.output_dir}/qc/stitching", \
+        pattern: "test_stitched_export_image.png", \
+        mode: "copy"
+    publishDir "${params.output_path}/${meta.output_dir}/qc/stitching", \
+        pattern: "run_config_export*.yaml", \
+        mode: "copy"
+
+    input :
+    tuple val(meta), path(shading_corrected_zarr), path(stitching_positions_csv)
+
+    output :
+    tuple val(meta), path("stitched.zarr")
+    path("test_stitched_export_image.png")
+    path("run_config_export_${meta.scene}_${meta.channel_index}_${meta.channel_name}.yaml")
+
+    """
+    stitching_export.py  \
+        --file_path ${shading_corrected_zarr} \
+        --positions_df_path ${stitching_positions_csv} \
+        --output_path ./ \
+        --output_run_config_filename "run_config_export_${meta.scene}_${meta.channel_index}_${meta.channel_name}.yaml" \
+        --output_image_name "stitched.zarr" \
+        --output_test_image_name "test_stitched_export_image_${meta.scene}_${meta.channel_index}_${meta.channel_name}.png"
+    """
+}

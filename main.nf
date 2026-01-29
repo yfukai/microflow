@@ -74,5 +74,12 @@ workflow {
     }.set { shading_corrected_target_channel }
     STITCHING_ESTIMATION(shading_corrected_target_channel)
 
+    stitching_estimation_results = STITCHING_ESTIMATION.out[0]
+    stitching_estimation_results.map { meta, stitching_result_csv ->
+        [meta.scene, stitching_result_csv]
+    }.groupTuple().set { stitching_results_by_scene }
+    stitching_results_by_scene.view()
+
+
 }
 

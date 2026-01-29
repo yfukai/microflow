@@ -4,6 +4,26 @@ import pandas as pd
 from itertools import combinations
 import networkx as nx
 
+def get_mosaic_image_shape(image_shape, mosaic_positions):
+    """Get the shape of the mosaic image.
+    
+    Parameters
+    ----------
+    image_shape : tuple of int
+        Shape of a single image.
+    
+    mosaic_positions : list of tuple of int
+        List of positions of images in the mosaic.
+    
+    Returns
+    -------
+    tuple of int
+        Shape of the mosaic image.
+    """
+    mosaic_positions = (mosaic_positions - np.min(mosaic_positions, axis=0)[np.newaxis]).round().astype(int)
+    mosaic_size = np.max(mosaic_positions, axis=0) + np.array(image_shape[-2:])
+    return tuple(mosaic_size), mosaic_positions
+
 def merge_mosaic_images(images, mosaic_positions, add_mosaics = False):
     """Merge images into a mosaic image.
     
@@ -21,10 +41,7 @@ def merge_mosaic_images(images, mosaic_positions, add_mosaics = False):
         Mosaic image.
     """
 
-    mosaic_positions = (mosaic_positions - np.min(mosaic_positions, axis=0)[np.newaxis]).round().astype(int)
-    
-    # Get the size of the mosaic image
-    mosaic_size = np.max(mosaic_positions, axis=0) + np.array(images[0].shape[-2:])
+    mosaic_size, mosaic_positions = get_mosaic_image_shape(images[0].shape, np.array(mosaic_positions))
     
     # Create the mosaic image
     mosaic = np.zeros(mosaic_size, dtype=images.dtype)
