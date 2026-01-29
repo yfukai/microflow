@@ -1,39 +1,38 @@
-process STITCHING {
-    conda "${projectDir}/env/conda_env.yaml"
+process STITCHING_ESTIMATION {
+    conda "${moduleDir}/env/conda.yaml"
     errorStrategy 'ignore'
-//    maxRetries 3
     maxForks 4 
     cpus 8 
     cache true
 
-    publishDir "${params.output_path}/${output_dir}", \
-        pattern: "{stitching_result.csv}", \
+    publishDir "${params.output_path}/${meta.output_dir}", \
+        pattern: "stitching_result_${meta.scene}.csv", \
         mode: "copy"
-    publishDir "${params.output_path}/${output_dir}/notebooks", \
-        pattern: "{*.ipynb}", \
+    publishDir "${params.output_path}/${meta.output_dir}/qc/stitching", \
+        pattern: "test_stitched_image_${meta.scene}.png", \
         mode: "copy"
-    publishDir "${params.output_path}/${output_dir}", \
-        pattern: "stitched.zarr", \
-        mode: "symlink"
+    publishDir "${params.output_path}/${meta.output_dir}/qc/stitching", \
+        pattern: "run_config*.png", \
+        mode: "copy"
 
     input :
-    tuple val(output_dir), path("metadata.yaml"), path("shading_corrected.zarr")
+    tuple val(meta), path(shading_corrected_zarr), path(metadata_yaml)
 
     output :
-    tuple path("stitched.zarr"), val(output_dir)
-    path "stitching_result.csv" 
-    path "c_stitching.ipynb"
+    tuple val(meta), path("stitching_result_${meeta.scene}.csv")
+    path("test_stitched_image_${meta.scene}.png")
+    path("run_config_${meta.scene}_${meta.channel_index}_${meta.channel_name}.yaml")
+
 
     """
-    PYTHONPATH="${projectDir}/scripts" papermill ${projectDir}/scripts/c_stitching.ipynb \
-        c_stitching.ipynb  \
-        -p file_path shading_corrected.zarr \
-        -p output_dir ./ \
-        -p metadata_path "metadata.yaml" \
-        -p output_image_name "stitched.zarr" \
-        -p output_csv_name "stitching_result.csv" \
-        -p stitch_every_t ${params.stitching_stitch_every_t} \
-        -p num_cpus ${task.cpus} \
-        -p target_channel '${params.stitching_target_channel}'
+    stitching_estimation.py  \
+        --file_path ${shading_corrected_zarr} \
+        --metadata_path ${metadata_yaml} \
+        --scene ${meta.scene} \
+        --stitch_every_t ${params.stitching_stitch_every_t} \
+        --output_path ./ \
+        --output_run_config_filename "run_config_${meta.scene}_${meta.channel_index}_${meta.channel_name}.yaml" \
+        --output_position_name "stitching_result_${meta.scene}.csv" \
+        --output_test_image_name "test_stitched_image_${meta.scene}.png"
     """
 }

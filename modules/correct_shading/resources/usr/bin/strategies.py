@@ -1,15 +1,10 @@
-from enum import Enum
+from typing import Literal
 from dataclasses import dataclass
 import numpy as np
 from skimage import transform, filters, morphology
 
-class PerImageStrategyKind(str, Enum):
-    none = "none"
-    imodpoly = "imodpoly"
-    local_subtraction = "local_subtraction"
-
 class PerImageStrategyConfig:
-    strategy: PerImageStrategyKind
+    strategy_name: str
     
     def estimate(self, image_data: np.ndarray) -> np.ndarray:
         """Estimate the additive background profile from the given image data.
@@ -31,16 +26,13 @@ class PerImageStrategyConfig:
         """
         raise NotImplementedError
 
-
-
 @dataclass
 class NullImageStrategyConfig(PerImageStrategyConfig):
-    strategy: PerImageStrategyKind = PerImageStrategyKind.none
-
+    strategy_name: Literal["none"] = "none"
 
 @dataclass
 class ImodpolyConfig(PerImageStrategyConfig):
-    strategy: PerImageStrategyKind = PerImageStrategyKind.imodpoly
+    strategy_name: Literal["imodpoly"] = "imodpoly"
     poly_order: int = 2
     tol: float = 1e-3
     max_iter: int = 200
@@ -57,14 +49,14 @@ def scaled_filter(im2d,scale,fn,anti_aliasing=True):
     im2d = fn(im2d)
     return transform.resize(im2d,shape, preserve_range=True)
 
-def local_subtraction_2d_ignore_zero(im2d, scaling=0.1, median_disk_size=4):
+def local_subtraction_2d_ignore_zero(im2d, scaling=0.1, median_filter_size=4):
     if scaling <= 0 or scaling >= 1:
         raise ValueError("scaling must be between 0 and 1")
     if im2d.ndim != 2:
         raise ValueError("im2d must be a 2D array")
     def median_filter(im):
         return filters.median(
-                    im,morphology.disk(median_disk_size)
+                    im,morphology.disk(median_filter_size)
                 )
     if np.count_nonzero(im2d) == 0:
         return im2d
@@ -72,22 +64,26 @@ def local_subtraction_2d_ignore_zero(im2d, scaling=0.1, median_disk_size=4):
 
 @dataclass
 class LocalSubtractionConfig:
-    strategy: PerImageStrategyKind = PerImageStrategyKind.local_subtraction
+    strategy_name: Literal["local_subtraction"] = "local_subtraction"
     scaling: float = 0.1
-    median_disk_size: int = 4
+    median_filter_size: int = 4
 
     def estimate(self, image_data: np.ndarray) -> np.ndarray:
         return np.array([local_subtraction_2d_ignore_zero(im, 
                                                 scaling=self.scaling,
-                                                median_disk_size=self.median_disk_size)
+                                                median_filter_size=self.median_filter_size)
                          for im in image_data])
 
-class PerFrameStrategyKind(str, Enum):
-    percentile = "percentile"
-    none = "none"
-
+PER_IMAGE_STRATEGIES = {
+    cls.strategy_name: cls
+    for cls in [
+        NullImageStrategyConfig,
+        ImodpolyConfig,
+        LocalSubtractionConfig,
+    ]   
+}
 class PerFrameStrategyConfig:
-    strategy: PerFrameStrategyKind
+    strategy_name: str
     def estimate(self, image_data: np.ndarray) -> dict[str, np.ndarray]:
         raise NotImplementedError
 
@@ -96,7 +92,7 @@ class PerFrameStrategyConfig:
 
 @dataclass
 class NullFrameStrategyConfig(PerFrameStrategyConfig):
-    strategy: PerFrameStrategyKind = PerFrameStrategyKind.none
+    strategy_name: Literal["none"] = "none"
 
     def estimate(self, image_data: np.ndarray) -> dict[str, np.ndarray]:
         raise NotImplementedError
@@ -106,7 +102,7 @@ class NullFrameStrategyConfig(PerFrameStrategyConfig):
 
 @dataclass
 class PercentileConfig(PerFrameStrategyConfig):
-    strategy: PerFrameStrategyKind = PerFrameStrategyKind.percentile
+    strategy_name: Literal["percentile"] = "percentile"
     percentile: float = 50.0
     robust: bool = False
     deviation_factor: float = 2.0
@@ -129,3 +125,11 @@ class PercentileConfig(PerFrameStrategyConfig):
         profile = profiles["background"]
         corrected = image_data.astype(np.float32) - profile
         return corrected
+
+PER_FRAME_STRATEGIES = {
+    cls.strategy_name: cls
+    for cls in [
+        NullFrameStrategyConfig,
+        PercentileConfig,
+    ]
+}

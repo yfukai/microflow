@@ -1,0 +1,9 @@
+file_path: /work/fukai/2025-11-23-timelapse/work/e9/b973f093ae5fd67918d48e8da4b4f8/shading_corrected.zarr
+metadata_path: /work/fukai/2025-11-23-timelapse/work/e9/b973f093ae5fd67918d48e8da4b4f8/metadata.yaml
+num_cpus: 48
+output_path: testdata/test_output
+output_position_name: mosaic_positions.csv
+output_run_config_filename: run_config.yaml
+output_test_image_name: test_stitched_image.png
+scene: 1.1%-50ms
+stitch_every_t: 10

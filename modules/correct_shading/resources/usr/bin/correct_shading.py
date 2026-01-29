@@ -18,11 +18,11 @@ from shutil import rmtree
 from tensorstore_utils import init_store, codecs_image
 from strategies import (
     PerImageStrategyConfig,
-    PerImageStrategyKind,
     NullImageStrategyConfig,
+    PER_IMAGE_STRATEGIES,
     PerFrameStrategyConfig,
-    PerFrameStrategyKind,
     PercentileConfig,
+    PER_FRAME_STRATEGIES,
 )
 
 
@@ -45,7 +45,16 @@ class Config:
     
     num_cpus : int = mp.cpu_count()
     
-
+def expand_class(cls_dict, d):
+    params = {k:v for k,v in d.items() if k != 'strategy_name'}
+    return cls_dict[d['strategy_name']](**params)
+pyrallis.decode.register(PerImageStrategyConfig, 
+    lambda d: expand_class(PER_IMAGE_STRATEGIES, d)
+)
+pyrallis.decode.register(PerFrameStrategyConfig, 
+    lambda d: expand_class(PER_FRAME_STRATEGIES, d)
+)
+                    
     
 def process_frame(frame_data: np.ndarray, *, cfg: Config) -> tuple[np.ndarray, dict[str, np.ndarray], np.ndarray|None]:
     """Process a single frame with shading correction.
@@ -72,7 +81,7 @@ def process_frame(frame_data: np.ndarray, *, cfg: Config) -> tuple[np.ndarray, d
     if frame_data.ndim != 4:
         raise ValueError("frame_data must be a 4D array with shape (M, Z, Y, X).")
 
-    if cfg.preprocessing_for_per_frame_estimation.strategy != PerImageStrategyKind.none:
+    if cfg.preprocessing_for_per_frame_estimation.strategy_name != "none":
         per_frame_estimation_preprocessed = np.array([
             cfg.preprocessing_for_per_frame_estimation.estimate(frame_data[m])
             for m in range(frame_data.shape[0])
@@ -80,13 +89,13 @@ def process_frame(frame_data: np.ndarray, *, cfg: Config) -> tuple[np.ndarray, d
     else:
         per_frame_estimation_preprocessed = frame_data
 
-    if cfg.per_frame_strategy.strategy != PerFrameStrategyKind.none:
+    if cfg.per_frame_strategy.strategy_name != "none":
         frame_profile = cfg.per_frame_strategy.estimate(per_frame_estimation_preprocessed)
         frame_data = cfg.per_frame_strategy.correct(frame_data, frame_profile)
     else:
         frame_profile = {}
         frame_data = frame_data
-    if cfg.per_image_strategy.strategy != PerImageStrategyKind.none:
+    if cfg.per_image_strategy.strategy_name != "none":
         image_profile = np.array([cfg.per_image_strategy.estimate(im) for im in frame_data])
         frame_data = frame_data - image_profile
     else:

@@ -11,15 +11,23 @@ process CORRECT_SHADING_EACH_FRAME {
     //publishDir "${params.output_path}/${meta.output_dir}/qc/correct_shading", pattern: 'shading_profile.zarr', mode: "symlink"
 
     input:
-    tuple val(meta), path(image_file_path), path("metadata.yaml")
+    tuple val(meta), path(image_file_path), path("metadata.yaml"), val(shading_correction_config_str)
 
     output:
-    tuple val(meta), path("shading_corrected.zarr")
+    tuple val(meta), path("shading_corrected.zarr"), path("metadata.yaml")
     path("shading_correction_result*.png")
     path("run_config*.yaml")
 
-    """
-    correct_shading.py \
+    script:
+    def command = ""
+    if (shading_correction_config_str) {
+        command += """cat - << EOF > shading_correction_config.yaml
+${shading_correction_config_str}
+EOF
+"""
+    }
+
+    command +="""correct_shading.py \
         --file_path "${image_file_path}" \
         --metadata_path "metadata.yaml" \
         --scene "${meta.scene}" \
@@ -29,6 +37,11 @@ process CORRECT_SHADING_EACH_FRAME {
         --output_correction_data_filename "shading_correction_${meta.scene}_${meta.channel_index}_${meta.channel_name}.zarr" \
         --output_test_image_filename "shading_correction_result_${meta.scene}_${meta.channel_index}_${meta.channel_name}.png" \
         --output_image_name "shading_corrected.zarr" \
-        --num_cpus ${task.cpus} 
-    """
+        --num_cpus ${task.cpus} """
+    if (shading_correction_config_str) {
+        command += """ \\
+        --config_path "shading_correction_config.yaml" """
+    }
+    
+    command
 }
