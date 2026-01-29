@@ -19,7 +19,7 @@ process STITCHING_ESTIMATION {
     tuple val(meta), path(shading_corrected_zarr), path(metadata_yaml)
 
     output :
-    tuple val(meta), path("stitching_result_${meeta.scene}.csv")
+    tuple val(meta), path("stitching_result_${meta.scene}.csv")
     path("test_stitched_image_${meta.scene}.png")
     path("run_config_${meta.scene}_${meta.channel_index}_${meta.channel_name}.yaml")
 
