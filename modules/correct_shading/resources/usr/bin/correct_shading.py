@@ -129,6 +129,7 @@ def main():
     else:
         scene_name = cfg.scene
     print(f"Using scene: {scene_name}")
+    image.set_scene(scene_name)
     mosaic_dim = metadata[scene_name]["mosaic_dimension"]
     image_data = read_mosaic_image(image, mosaic_dim, "TZYX", C=cfg.channel_index)
     # image_data : "MTZYX"

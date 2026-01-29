@@ -1,10 +1,10 @@
 process CORRECT_SHADING_EACH_FRAME {
     conda "${moduleDir}/env/conda.yaml"
-//    errorStrategy 'retry'
-//    maxForks 2
+    errorStrategy 'ignore'
+    maxForks 10
 //    maxRetries 3
     cache true
-//    cpus 4
+    cpus 4
 
     publishDir({ "${params.output_path}/${meta.output_dir}/qc/correct_shading" }), pattern: "shading_correction_result*.png", mode: "copy"
     publishDir({ "${params.output_path}/${meta.output_dir}/qc/correct_shading" }), pattern: "run_config*.yaml", mode: "copy"
@@ -19,8 +19,6 @@ process CORRECT_SHADING_EACH_FRAME {
     path("run_config*.yaml")
 
     """
-    touch input_config.yaml
-
     correct_shading.py \
         --file_path "${image_file_path}" \
         --metadata_path "metadata.yaml" \

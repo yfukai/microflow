@@ -110,7 +110,7 @@ class PercentileConfig(PerFrameStrategyConfig):
     percentile: float = 50.0
     robust: bool = False
     deviation_factor: float = 2.0
-    smoothing_sigma: float = 0.0
+    smoothing_sigma: float = 10.0
 
     def estimate(self, image_data: np.ndarray) -> dict[str, np.ndarray]:
         if self.robust:
