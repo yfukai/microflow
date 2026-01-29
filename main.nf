@@ -10,6 +10,7 @@ params.local_subtraction_channels = "all"
 
 include { EXPORT_ORIGINAL_FILENAME } from "./modules/misc"
 include { EXPORT_METADATA } from "./modules/export_metadata"
+include { CORRECT_SHADING_EACH_FRAME } from "./modules/correct_shading"
 //include { ESTIMATE_SHADING_EACH; CORRECT_SHADING_EACH } from "./modules/correct_shading"
 //include { STITCHING } from "./modules/stitching"
 
@@ -28,16 +29,17 @@ workflow {
     // Populate scenes_channels into metadata, and make a (meta, scene, channel_index list)
     image_files.join(metadata).set { image_files_metadata }
     image_files_metadata.map { meta, image_file, metadata_yaml, scenes_channels_yaml ->
-        def scenes_channels = new groovy.yaml.YamlSlurper().parseText(metadata_yaml.text)
+        def scenes_channels = new groovy.yaml.YamlSlurper().parseText(scenes_channels_yaml.text)
         val = []
         for (scene_channel in scenes_channels) {
-            meta2 = meta + scene_channel
+            def meta2 = meta + scene_channel
             val << [meta2, image_file, metadata_yaml]
         }
-    }.flatMap().set { image_files_metadata_expanded }
+        val
+    }.flatMap().take(2).set { image_files_metadata_expanded }
     image_files_metadata_expanded.view()
 
-//    CORRECT_SHADING_EACH_FRAME(image_files_metadata)
+    CORRECT_SHADING_EACH_FRAME(image_files_metadata_expanded)
 //
 //    shading_corrected = CORRECT_SHADING_EACH.out[0].collect()
 //    metadata.join(shading_corrected).set { image_files_metadata_shading_corrected }

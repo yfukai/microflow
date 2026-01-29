@@ -1,7 +1,7 @@
 [workspace]
 authors = ["Yohsuke Fukai <ysk@yfukai.net>"]
 channels = ["conda-forge"]
-name = "export_metadata"
+name = "correct_shading"
 platforms = ["osx-arm64", "linux-64"]
 version = "0.1.0"
 

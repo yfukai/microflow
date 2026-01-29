@@ -1,4 +1,4 @@
-# %%
+#!/usr/bin/env python3 
 import pyrallis
 from dataclasses import dataclass, field
 from enum import Enum
