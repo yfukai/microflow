@@ -1,10 +1,9 @@
 process STITCHING_ESTIMATION {
     conda "${moduleDir}/env/conda.yaml"
-    tag "stitching_estimation_${meta.output_dir}_${meta.scene}_${meta.channel_index}_${meta.channel_name}"
     errorStrategy 'ignore'
     maxForks 4 
     cpus 8 
-    cache true
+    cache false
 
     publishDir "${params.output_path}/${meta.output_dir}", \
         pattern: "stitching_result_${meta.scene}.csv", \
@@ -40,7 +39,7 @@ process STITCHING_ESTIMATION {
 
 process SUMMARIZE_STITCHING_POSITIONS_PER_FILE {
     conda "${moduleDir}/env/conda.yaml"
-    cache true
+    cache false
 
     publishDir "${params.output_path}/${meta.output_dir}", \
         pattern: "stitching_result_summary_${meta.scene}.csv", \
@@ -63,36 +62,43 @@ process SUMMARIZE_STITCHING_POSITIONS_PER_FILE {
 
 process STITCHING_EXPORT {
     conda "${moduleDir}/env/conda.yaml"
-    errorStrategy 'ignore'
     maxForks 4 
     cpus 8 
-    cache true
+    cache false
 
-    publishDir "${params.output_path}/${meta.output_dir}", \
-        pattern: "${meta.output_image_name}", \
-        mode: "copy"
-    publishDir "${params.output_path}/${meta.output_dir}/qc/stitching", \
-        pattern: "test_stitched_export_image.png", \
-        mode: "copy"
-    publishDir "${params.output_path}/${meta.output_dir}/qc/stitching", \
-        pattern: "run_config_export*.yaml", \
-        mode: "copy"
+    publishDir "${params.output_path}/${meta.output_dir}", pattern: "stitched.zarr", mode: "symlink"
+    publishDir "${params.output_path}/${meta.output_dir}/qc/stitching/", pattern: "run_config*.yaml", mode: "copy"
+    publishDir "${params.output_path}/${meta.output_dir}/qc/stitching/", pattern: "*.png", mode: "copy"
 
     input :
-    tuple val(meta), path(shading_corrected_zarr), path(stitching_positions_csv)
+    tuple val(meta), val(channel_metas), path("shading_corrected????.zarr"), path("metadata????.yaml"), path(stitching_positions_csv)
 
     output :
     tuple val(meta), path("stitched.zarr")
-    path("test_stitched_export_image.png")
-    path("run_config_export_${meta.scene}_${meta.channel_index}_${meta.channel_name}.yaml")
+    path("test_stitched_export_image_${meta.scene}.png")
+    path("run_config_export_${meta.scene}.yaml")
 
+    script:
+    // join channel names in sorted order
+    channels = channel_metas.collect { "[${it.channel_index},${it.channel_name}]" }.join(",")
+    channels = "[${channels}]"
     """
-    stitching_export.py  \
-        --file_path ${shading_corrected_zarr} \
+    # check all contents of metadata*.yaml are the same
+    # Note: should be removed once we reorganize the metadata data flow
+    COUNT=`sha256sum metadata*.yaml | cut -d' ' -f1 | sort | uniq -c | wc -l`
+    if [ \$COUNT -ne 1 ]; then
+        echo "Error: metadata*.yaml files are not the same"
+        exit 1
+    fi
+    stitching_export.py \
+        --file_path_pattern "shading_corrected????.zarr" \
+        --scene '${meta.scene}' \
+        --channels '${channels}' \
+        --metadata_path 'metadata0001.yaml' \
         --positions_df_path ${stitching_positions_csv} \
         --output_path ./ \
-        --output_run_config_filename "run_config_export_${meta.scene}_${meta.channel_index}_${meta.channel_name}.yaml" \
+        --output_run_config_filename "run_config_export_${meta.scene}.yaml" \
         --output_image_name "stitched.zarr" \
-        --output_test_image_name "test_stitched_export_image_${meta.scene}_${meta.channel_index}_${meta.channel_name}.png"
+        --output_test_image_name "test_stitched_export_image_${meta.scene}.png"
     """
 }

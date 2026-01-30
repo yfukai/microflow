@@ -11,7 +11,7 @@ params.stitching_stitch_every_t = 1
 include { EXPORT_ORIGINAL_FILENAME } from "./modules/misc"
 include { EXPORT_METADATA } from "./modules/export_metadata"
 include { CORRECT_SHADING_EACH_FRAME } from "./modules/correct_shading"
-include { STITCHING_ESTIMATION; SUMMARIZE_STITCHING_POSITIONS_PER_FILE } from "./modules/stitching"
+include { STITCHING_ESTIMATION; SUMMARIZE_STITCHING_POSITIONS_PER_FILE; STITCHING_EXPORT } from "./modules/stitching"
 
 
 workflow {
@@ -75,8 +75,16 @@ workflow {
     STITCHING_ESTIMATION(shading_corrected_target_channel)
     stitching_estimation_results = STITCHING_ESTIMATION.out[0]
     SUMMARIZE_STITCHING_POSITIONS_PER_FILE(stitching_estimation_results)
-    stitching_positions_summaries = SUMMARIZE_STITCHING_POSITIONS_PER_FILE.out[0]
-    stitching_positions_summaries.view()
+    stitching_positions_summaries = SUMMARIZE_STITCHING_POSITIONS_PER_FILE.out[0].map {
+        meta, stitching_positions_summary_csv -> [meta.subMap(['output_dir', 'scene']), stitching_positions_summary_csv]
+    }
+    shading_corrected.map { meta, shading_corrected_zarr, metadata_yaml ->
+        [meta.subMap(["output_dir", "scene"]), meta.subMap(["channel_index","channel_name"]), shading_corrected_zarr, metadata_yaml]
+    }.groupTuple().join(stitching_positions_summaries).set { shading_corrected_by_output_dir_scene }
+
+    STITCHING_EXPORT(shading_corrected_by_output_dir_scene.take(2))
+    
+
 
     /* for correcting stitching positions by scenes, future work 
     stitching_estimation_results.map { meta, stitching_result_csv ->

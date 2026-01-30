@@ -13,6 +13,12 @@ class Config:
 def main():
     cfg = pyrallis.parse(Config)
     df = pd.read_csv(cfg.file_path)
+    # Older stitching_result files may not contain a time column because the
+    # estimation step used to output a single timepoint.  In that case we
+    # synthesize a dummy T=0 so the downstream grouping logic still works.
+    if "T" not in df.columns:
+        df["T"] = 0
+
     df["y_pos"] = df["y_pos"] - df["y_pos"].mean()
     df["x_pos"] = df["x_pos"] - df["x_pos"].mean()
     median_positions = df.groupby(["row","col"])[["y_pos", "x_pos"]].median().reset_index()
@@ -26,7 +32,8 @@ def main():
     abs_diffs_df = pd.DataFrame(abs_diffs)
     T=abs_diffs_df.loc[(abs_diffs_df["y_pos"] + abs_diffs_df["x_pos"]).idxmin()]["T"]
     output_path = os.path.join(cfg.output_path, cfg.output_filename)
-    df[df["T"]==T].to_csv(output_path, index=False)
+    df0 = pd.read_csv(cfg.file_path)
+    df0[df0["T"]==T].to_csv(output_path, index=False)
 
 if __name__ == "__main__":
     main()
