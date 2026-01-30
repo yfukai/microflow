@@ -55,8 +55,7 @@ def stitch_T(T, *, file_path, try_ncc_thresholds, index_positions, mosaic_positi
                 raise e
     if positions is None:
         raise ValueError("Stitching failed.")
-    positions.assign(T=T)
-    return positions
+    return positions.assign(T=T)
     
 def main():
     cfg = pyrallis.parse(Config)
@@ -119,14 +118,25 @@ def main():
     plt.colorbar()
 
     ###################### Perform stitching ######################
-    stitch_T_fn = partial(stitch_T, 
-                          file_path=cfg.file_path, try_ncc_thresholds=cfg.try_ncc_thresholds,
-                          index_positions=position_indices, mosaic_positions=mosaic_positions)
+    def stitch_T_fn(T):
+        try:
+            return stitch_T(
+                T, 
+                file_path=cfg.file_path, 
+                try_ncc_thresholds=cfg.try_ncc_thresholds,
+                index_positions=position_indices, 
+                mosaic_positions=mosaic_positions
+            )
+        except Exception as e:
+            print(f"Stitching failed for T={T}: {e}")
+            return pd.DataFrame()
 
     T = target_Ts[0]
     positions = list(joblib.Parallel(n_jobs=cfg.num_cpus)(
         joblib.delayed(stitch_T_fn)(_T) for _T in [T]
     ))[0]
+    if positions.empty:
+        raise ValueError(f"Stitching failed for T={T}, cannot save test image.")
 
     stitched = merge_mosaic_images(image[T,:,0].read().result(), positions[["y_pos","x_pos"]].values)
     plt.figure(figsize=(10,10))

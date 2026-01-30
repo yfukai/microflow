@@ -11,7 +11,7 @@ params.stitching_stitch_every_t = 1
 include { EXPORT_ORIGINAL_FILENAME } from "./modules/misc"
 include { EXPORT_METADATA } from "./modules/export_metadata"
 include { CORRECT_SHADING_EACH_FRAME } from "./modules/correct_shading"
-include { STITCHING_ESTIMATION } from "./modules/stitching"
+include { STITCHING_ESTIMATION; SUMMARIZE_STITCHING_POSITIONS_PER_FILE } from "./modules/stitching"
 
 
 workflow {
@@ -73,12 +73,19 @@ workflow {
         meta.channel_name.equals(params.stitching_target_channel)
     }.set { shading_corrected_target_channel }
     STITCHING_ESTIMATION(shading_corrected_target_channel)
-
     stitching_estimation_results = STITCHING_ESTIMATION.out[0]
+    SUMMARIZE_STITCHING_POSITIONS_PER_FILE(stitching_estimation_results)
+    stitching_positions_summaries = SUMMARIZE_STITCHING_POSITIONS_PER_FILE.out[0]
+    stitching_positions_summaries.view()
+
+    /* for correcting stitching positions by scenes, future work 
     stitching_estimation_results.map { meta, stitching_result_csv ->
         [meta.scene, stitching_result_csv]
     }.groupTuple().set { stitching_results_by_scene }
     stitching_results_by_scene.view()
+
+    MEDIAN_SUMMARIZE_STITCHING_POSITIONS(stitching_results_by_scene)
+    */
 
 
 }

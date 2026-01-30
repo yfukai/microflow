@@ -1,5 +1,6 @@
 process STITCHING_ESTIMATION {
     conda "${moduleDir}/env/conda.yaml"
+    tag "stitching_estimation_${meta.output_dir}_${meta.scene}_${meta.channel_index}_${meta.channel_name}"
     errorStrategy 'ignore'
     maxForks 4 
     cpus 8 
@@ -37,28 +38,25 @@ process STITCHING_ESTIMATION {
     """
 }
 
-
-process MEDIAN_SUMMARIZE_STITCHING_POSITIONS {
+process SUMMARIZE_STITCHING_POSITIONS_PER_FILE {
     conda "${moduleDir}/env/conda.yaml"
-    errorStrategy 'ignore'
-    maxForks 4 
-    cpus 4 
     cache true
 
     publishDir "${params.output_path}/${meta.output_dir}", \
-        pattern: "stitching_positions_summary_${meta.scene}.csv", \
+        pattern: "stitching_result_summary_${meta.scene}.csv", \
         mode: "copy"
 
     input :
-    tuple val(meta), path(stitching_positions_csvs)
+    tuple val(meta), path("positions.csv")
 
     output :
-    tuple val(meta), path("stitching_positions_summary_${meta.scene}.csv")
+    tuple val(meta), path("stitching_result_summary_${meta.scene}.csv")
 
     """
-    median_summarize_stitching_positions.py  \
-        --input_paths ${stitching_positions_csvs.join(' ')} \
-        --output_path ./stitching_positions_summary_${meta.scene}.csv
+    summarize_mosaic_positions.py  \
+            --file_path positions.csv \
+            --output_path ./ \
+            --output_filename "stitching_result_summary_${meta.scene}.csv" \
     """
 }
 
