@@ -82,10 +82,8 @@ workflow {
         [meta.subMap(["output_dir", "scene"]), meta.subMap(["channel_index","channel_name"]), shading_corrected_zarr, metadata_yaml]
     }.groupTuple().join(stitching_positions_summaries).set { shading_corrected_by_output_dir_scene }
 
-    STITCHING_EXPORT(shading_corrected_by_output_dir_scene.take(2))
+    STITCHING_EXPORT(shading_corrected_by_output_dir_scene)
     
-
-
     /* for correcting stitching positions by scenes, future work 
     stitching_estimation_results.map { meta, stitching_result_csv ->
         [meta.scene, stitching_result_csv]
