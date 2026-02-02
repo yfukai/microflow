@@ -6,6 +6,8 @@ process CORRECT_SHADING_EACH_FRAME {
     cache true
     cpus 4
 
+    publishDir({ "${params.output_path}/${meta.output_dir}" }), 
+              pattern: "shading_corrected.zarr", mode: "symlink", saveAs: { "shading_corrected_${meta.scene}_${meta.channel_index}_${meta.channel_name}.zarr" }
     publishDir({ "${params.output_path}/${meta.output_dir}/qc/correct_shading" }), pattern: "shading_correction_result*.png", mode: "copy"
     publishDir({ "${params.output_path}/${meta.output_dir}/qc/correct_shading" }), pattern: "run_config*.yaml", mode: "copy"
     //publishDir "${params.output_path}/${meta.output_dir}/qc/correct_shading", pattern: 'shading_profile.zarr', mode: "symlink"

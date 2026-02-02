@@ -61,6 +61,7 @@ def main():
         shape=output_image_shape,
         dtype=input_image.dtype,
         codecs=codecs_image,
+        chunks=(1,1,1, 2048, 2048),
         mode="w"
     ) #In TCZYX
     print("Initialized output stitched image store. Shape:", output_image.shape)

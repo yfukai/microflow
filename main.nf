@@ -83,6 +83,17 @@ workflow {
     }.groupTuple().join(stitching_positions_summaries).set { shading_corrected_by_output_dir_scene }
 
     STITCHING_EXPORT(shading_corrected_by_output_dir_scene)
+
+    // export output_dir, scene, and "stitched_${scene}.zarr" as CSV
+    STITCHING_EXPORT.out[0].map { meta, stitched_zarr ->
+        [meta.output_dir, meta.scene, "stitched_${meta.scene}.zarr"]
+    }.collectFile(
+        name: "${params.output_path}/stitched_zarr_files.csv",
+        seed: "output_dir,scene,stitched_zarr_file",
+        newLine: true
+    ) { row -> 
+        "${row[0]},${row[1]},${row[2]}"
+    }
     
     /* for correcting stitching positions by scenes, future work 
     stitching_estimation_results.map { meta, stitching_result_csv ->

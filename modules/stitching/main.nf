@@ -3,7 +3,7 @@ process STITCHING_ESTIMATION {
     errorStrategy 'ignore'
     maxForks 4 
     cpus 8 
-    cache false
+    cache true
 
     publishDir "${params.output_path}/${meta.output_dir}", \
         pattern: "stitching_result_${meta.scene}.csv", \
@@ -39,7 +39,7 @@ process STITCHING_ESTIMATION {
 
 process SUMMARIZE_STITCHING_POSITIONS_PER_FILE {
     conda "${moduleDir}/env/conda.yaml"
-    cache false
+    cache true
 
     publishDir "${params.output_path}/${meta.output_dir}", \
         pattern: "stitching_result_summary_${meta.scene}.csv", \
@@ -64,9 +64,9 @@ process STITCHING_EXPORT {
     conda "${moduleDir}/env/conda.yaml"
     maxForks 4 
     cpus 8 
-    cache false
+    cache true
 
-    publishDir "${params.output_path}/${meta.output_dir}", pattern: "stitched.zarr", mode: "symlink"
+    publishDir "${params.output_path}/${meta.output_dir}", pattern: "stitched_${meta.scene}.zarr", mode: "symlink"
     publishDir "${params.output_path}/${meta.output_dir}/qc/stitching/", pattern: "run_config*.yaml", mode: "copy"
     publishDir "${params.output_path}/${meta.output_dir}/qc/stitching/", pattern: "*.png", mode: "copy"
 
@@ -74,7 +74,7 @@ process STITCHING_EXPORT {
     tuple val(meta), val(channel_metas), path("shading_corrected????.zarr"), path("metadata????.yaml"), path(stitching_positions_csv)
 
     output :
-    tuple val(meta), path("stitched.zarr")
+    tuple val(meta), path("stitched_${meta.scene}.zarr")
     path("test_stitched_export_image_${meta.scene}.png")
     path("run_config_export_${meta.scene}.yaml")
 
@@ -98,7 +98,7 @@ process STITCHING_EXPORT {
         --positions_df_path ${stitching_positions_csv} \
         --output_path ./ \
         --output_run_config_filename "run_config_export_${meta.scene}.yaml" \
-        --output_image_name "stitched.zarr" \
+        --output_image_name "stitched_${meta.scene}.zarr" \
         --output_test_image_name "test_stitched_export_image_${meta.scene}.png"
     """
 }
