@@ -10,6 +10,31 @@ import yaml
 import numpy as np
 from matplotlib import pyplot as plt
 from get_acquired_time import frame_acquisition_times
+from get_stage_positions import scene_mosaic_positions_px
+
+# Name of the pseudo scene used when the file is treated as a single scene,
+# either because it has no scene dimension or because the scenes are the mosaic tiles.
+ALL_SCENES = "all_scenes"
+
+
+def open_image(file_path : str) -> BioImage:
+    """Open an image file, keeping the mosaic tiles separate.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the image file.
+
+    Returns
+    -------
+    BioImage
+        The BioImage object.
+    """
+    # `use_aicspylibczi` is understood only by the CZI reader, and the other readers
+    # reject unknown keyword arguments.
+    reader_kwargs = {"use_aicspylibczi": True} if file_path.lower().endswith(".czi") else {}
+    return BioImage(file_path, reconstruct_mosaic=False, **reader_kwargs)
+
 
 def merge_mosaic_images(images, mosaic_positions):
     """Merge images into a mosaic image.
@@ -65,12 +90,16 @@ def determine_mosaic_dimensions(image : BioImage):
 
 def to_unique_channel_names(channel_names : list[str]) -> list[str]:
     """Convert channel names to unique channel names by appending indices to duplicates.
-    
+
+    The first occurrence of a name is kept as is and the following ones are numbered
+    from 2, so that e.g. two "Bright" channels become "Bright" and "Bright_2". This is
+    the convention the CZI channel names already follow.
+
     Parameters
     ----------
     channel_names : list of str
         List of channel names.
-    
+
     Returns
     -------
     list of str
@@ -79,13 +108,9 @@ def to_unique_channel_names(channel_names : list[str]) -> list[str]:
     name_count = {}
     unique_names = []
     for name in channel_names:
-        if name in name_count:
-            name_count[name] += 1
-            unique_name = f"{name}_{name_count[name]}"
-        else:
-            name_count[name] = 0
-            unique_name = name
-        unique_names.append(unique_name)
+        name_count[name] = name_count.get(name, 0) + 1
+        count = name_count[name]
+        unique_names.append(name if count == 1 else f"{name}_{count}")
     return [str(n) for n in unique_names]
 
 
@@ -107,9 +132,7 @@ def main():
     with open(output_run_config_path, "w") as f:
         pyrallis.dump(cfg, f)
 
-    image = BioImage(cfg.file_path, 
-                     reconstruct_mosaic=False, 
-                     use_aicspylibczi=True)
+    image = open_image(cfg.file_path)
 
     mosaic_dim = determine_mosaic_dimensions(image)
     acquired_times : list[dict] = frame_acquisition_times(image) # This is a global list
@@ -124,8 +147,10 @@ def main():
             scene_index = t.get("I",0)
             acquired_times_by_scene[scenes[scene_index]].append(t)
     else:
-        scenes = [None]
-        acquired_times_by_scene = {None: acquired_times}
+        # The scenes are the mosaic tiles (or there is only one scene), so the whole
+        # file is exported as a single pseudo scene.
+        scenes = [ALL_SCENES]
+        acquired_times_by_scene = {ALL_SCENES: acquired_times}
     
     # Export metadata to YAML
     def cast_pixel_size(value):
@@ -136,13 +161,15 @@ def main():
     
     all_metadata = {}
     for scene in scenes:
-        if scene is not None:
+        if scene != ALL_SCENES:
             image.set_scene(scene)
         if mosaic_dim == "M":
             mosaic_positions = np.array(image.get_mosaic_tile_positions())
         elif mosaic_dim == "I":
-            raise NotImplementedError("Mosaic positions for 'scene' dimension are not implemented.")
-        
+            mosaic_positions = scene_mosaic_positions_px(image)
+        else:
+            mosaic_positions = None
+
         print(f"Scene: {scene}")
         print(f"  Dimensions: {image.dims}")
         print(f"  Physical Pixel Sizes (microns): Z={image.physical_pixel_sizes.Z}, Y={image.physical_pixel_sizes.Y}, X={image.physical_pixel_sizes.X}")
@@ -163,8 +190,11 @@ def main():
             acquired_times = acquired_times_by_scene[scene]
         )
         all_metadata[scene] = metadata
-       
-        if mosaic_dim == "I": 
+
+        if mosaic_dim is None:
+            print("  Not a mosaic image, skipping the test stitched image.")
+            continue
+        if mosaic_dim == "I":
             xr_image = image.get_xarray_dask_stack()
         else:
             xr_image = image.xarray_dask_data
@@ -176,15 +206,12 @@ def main():
         plt.figure(figsize=(10,10))
         plt.imshow(mosaic)
         output_test_image_path = path.join(
-            cfg.output_path, 
-            f"{cfg.output_test_image_filename_prefix}" + (f"_{scene}" if scene is not None else "") + ".png"
+            cfg.output_path,
+            f"{cfg.output_test_image_filename_prefix}_{scene}.png"
         )
         print(f"  Saving test stitched image to: {output_test_image_path}")
         plt.savefig(output_test_image_path, bbox_inches='tight')
         plt.close()
-
-    if all_metadata.keys() == [None]:
-        all_metadata["all_scenes"] = all_metadata.pop(None)
 
     os.makedirs(path.dirname(output_metadata_path),exist_ok=True)
     with open(output_metadata_path, "w") as f:

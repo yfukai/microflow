@@ -67,7 +67,8 @@ def main():
     print("Initialized output stitched image store. Shape:", output_image.shape)
 
     cfg_channels = sorted(cfg.channels, key=lambda x:x[0])
-    meta_channels = metadata["channel_names"]
+    # The channel names given in the config are the unique ones, see yaml_extract_channels.py
+    meta_channels = metadata["unique_channel_names"]
     if not len(cfg_channels) == len(meta_channels):
         raise ValueError(f"Number of channels in config {len(cfg.channels)} does not match number of channels in metadata {len(metadata['channel_names'])}")
     if not all(cfg_channels[i][1] == meta_channels[cfg_channels[i][0]] for i in range(len(cfg_channels))):

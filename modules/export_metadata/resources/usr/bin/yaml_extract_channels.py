@@ -6,7 +6,9 @@ with open('metadata.yaml', 'r') as f:
     
 exported_data = []
 for scene, scene_data in metadata.items():
-    channel_names = scene_data.get('channel_names', [])
+    # The unique names are used so that each channel can be identified by its name,
+    # e.g. when selecting the target channel of the stitching estimation.
+    channel_names = scene_data.get('unique_channel_names', [])
     for idx, name in enumerate(channel_names):
         exported_data.append({
             'scene': scene,

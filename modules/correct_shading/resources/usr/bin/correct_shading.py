@@ -26,6 +26,12 @@ from strategies import (
 )
 
 
+# Name of the pseudo scene used by export_metadata when the file is treated as a
+# single scene, either because it has no scene dimension or because the scenes are
+# the mosaic tiles.
+ALL_SCENES = "all_scenes"
+
+
 @dataclass
 class Config:
     file_path : str = "testdata/test.czi"
@@ -127,9 +133,12 @@ def main():
     with open(output_run_config_path, "w") as f:
         pyrallis.dump(cfg, f)
 
-    image = BioImage(cfg.file_path, 
-                     reconstruct_mosaic=False, 
-                     use_aicspylibczi=True)
+    # `use_aicspylibczi` is understood only by the CZI reader, and the other readers
+    # reject unknown keyword arguments.
+    reader_kwargs = {"use_aicspylibczi": True} if cfg.file_path.lower().endswith(".czi") else {}
+    image = BioImage(cfg.file_path,
+                     reconstruct_mosaic=False,
+                     **reader_kwargs)
     with open(cfg.metadata_path, 'r') as f:
         metadata = yaml.safe_load(f)
 
@@ -138,8 +147,9 @@ def main():
     else:
         scene_name = cfg.scene
     print(f"Using scene: {scene_name}")
-    image.set_scene(scene_name)
     mosaic_dim = metadata[scene_name]["mosaic_dimension"]
+    if scene_name != ALL_SCENES:
+        image.set_scene(scene_name)
     image_data = read_mosaic_image(image, mosaic_dim, "TZYX", C=cfg.channel_index)
     # image_data : "MTZYX"
     print(f"Metadata: {metadata}")
